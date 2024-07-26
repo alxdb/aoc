@@ -1,0 +1,26 @@
+name: aoc
+version: 0.0.1
+
+ghc-options: -Wall
+language: GHC2021
+
+library:
+  source-dirs: lib
+  dependencies:
+    - base
+
+executables:
+  aoc:
+    main: Main.hs
+    source-dirs: app
+    dependencies:
+      - aoc
+      - base
+
+tests:
+  spec:
+    defaults: hspec/hspec@main
+    dependencies:
+      - aoc
+      - base
+      - hspec
