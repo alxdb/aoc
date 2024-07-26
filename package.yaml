@@ -8,6 +8,9 @@ library:
   source-dirs: lib
   dependencies:
     - base
+    - bytestring
+    - utf8-string
+    - http-conduit
 
 executables:
   aoc:
