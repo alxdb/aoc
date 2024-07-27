@@ -20,6 +20,9 @@ executables:
       - aoc
       - base
       - optparse-applicative
+      - ghc
+      - ghc-paths
+      - ghc-source-gen
 
 tests:
   spec:
