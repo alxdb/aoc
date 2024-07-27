@@ -3,16 +3,19 @@ module Aoc.CLI where
 import Options.Applicative
 
 data Options = Options
-  { year :: Int
-  , day :: Int
-  , optCommand :: Command
+  { aocId :: AocId
+  , aocCommand :: Command
   }
 
+data AocId = AocId {year :: Int, day :: Int}
 data Command = Init | Solve deriving (Read, Show, Eq)
+
+makeOptions :: Int -> Int -> Command -> Options
+makeOptions year day = Options (AocId year day)
 
 options :: Parser Options
 options =
-  Options
+  makeOptions
     <$> argument auto (metavar "YEAR")
     <*> argument auto (metavar "DAY")
     <*> hsubparser (initCommand <> solveCommand)
