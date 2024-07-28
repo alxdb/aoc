@@ -46,7 +46,7 @@ solutionModule aocId =
     (Just [var "solution"])
     []
     [ typeSig "solution" solutionType
-    , funBind "solution" $ match [wildP] (bvar "0")
+    , funBind "solution" $ match [] (var "undefined")
     ]
 
 testModule :: AocId -> HsModule'
