@@ -36,7 +36,7 @@ getInput (AocId year day _) = do
   token <- getToken <&> fromString
   req <- parseRequest url <&> addRequestHeader "cookie" token
   res <- httpBS req <&> getResponseBody
-  let input = res & toString
+  let input = res <> "\n" & toString
   if isValidInput input
     then return input
     else fail invalidInputResponse
