@@ -8,9 +8,6 @@ library:
   source-dirs: lib
   dependencies:
     - base
-    - bytestring
-    - utf8-string
-    - http-conduit
 
 executables:
   aoc:
@@ -19,10 +16,13 @@ executables:
     dependencies:
       - aoc
       - base
-      - optparse-applicative
+      - bytestring
       - ghc
       - ghc-paths
       - ghc-source-gen
+      - http-conduit
+      - optparse-applicative
+      - utf8-string
 
 tests:
   spec:
