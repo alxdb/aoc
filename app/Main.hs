@@ -1,4 +1,4 @@
-module Main where
+module Main (main) where
 
 import Aoc.CLI
 import Aoc.Gen
@@ -17,15 +17,23 @@ solutionModuleFileName (AocId y d p) = printf "lib/Aoc/Year%d/Day%02d/Part%d.hs"
 testModuleFileName :: AocId -> FilePath
 testModuleFileName (AocId y d p) = printf "test/Aoc/Year%d/Day%02d/Part%dSpec.hs" y d p
 
+writeFileUnlessExists :: FilePath -> IO String -> IO ()
+writeFileUnlessExists filePath genContents = do
+  unlessM (doesFileExist filePath) $ do
+    -- TODO: Create directory for path if missing
+    contents <- genContents
+    writeFile filePath contents
+
 main :: IO ()
 main = do
   (Options aocId command) <- parseOptions
   case command of
     Init -> do
       unlessM (doesFileExist "aoc.cabal") $ do
-        fail "Please only run from the root of the git repository"
-      let inputFileName = inputDataFileName aocId
-      unlessM (doesFileExist inputFileName) $ do
-        inputContents <- getInput aocId
-        writeFile inputFileName inputContents
+        fail "Please only run from the root of the project"
+      writeFileUnlessExists (inputDataFileName aocId) (getInput aocId)
+      writeFileUnlessExists (solutionModuleFileName aocId) (genModule $ solutionModule aocId)
+      writeFileUnlessExists (testModuleFileName aocId) (genModule $ testModule aocId)
+      aocModuleFiles <- listDirectory "lib/Aoc"
+      print aocModuleFiles
     Solve -> return ()
