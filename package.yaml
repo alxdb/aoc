@@ -4,6 +4,9 @@ version: 0.0.1
 ghc-options: -Wall
 language: GHC2021
 
+data-files:
+  - data/*
+
 library:
   source-dirs: lib
   dependencies:
@@ -17,6 +20,7 @@ executables:
       - aoc
       - base
       - bytestring
+      - directory
       - ghc
       - ghc-paths
       - ghc-source-gen
