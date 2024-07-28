@@ -18,50 +18,50 @@ solutionType = var "String" --> var "Int"
 
 mapModule :: [AocId] -> HsModule'
 mapModule aocIds =
-    module'
-        (Just "Aoc.Map")
-        (Just [var "getSolution"])
-        ( import' "Aoc.CLI"
-            : [qualified' . import' $ fromString (aocModuleName aocId) | aocId <- aocIds]
-        )
-        [ typeSig "getSolution" $ var "AocId" --> var "Maybe" @@ solutionType
-        , funBinds
-            "getSolution"
-            $ [ let
-                    y = bvar . fromString . show $ year aocId
-                    d = bvar . fromString . printf "%02d" $ day aocId
-                    p = bvar . fromString . show $ part aocId
-                    s = var . fromString $ aocModuleName aocId <> ".solution"
-                 in
-                    match [conP "AocId" [y, d, p]] (var "Just" @@ s)
-              | aocId <- aocIds
-              ]
-                ++ [match [wildP] (var "Nothing")]
-        ]
+  module'
+    (Just "Aoc.Map")
+    (Just [var "getSolution"])
+    ( import' "Aoc.CLI"
+        : [qualified' . import' $ fromString (aocModuleName aocId) | aocId <- aocIds]
+    )
+    [ typeSig "getSolution" $ var "AocId" --> var "Maybe" @@ solutionType
+    , funBinds
+        "getSolution"
+        $ [ let
+              y = bvar . fromString . show $ year aocId
+              d = bvar . fromString . printf "%02d" $ day aocId
+              p = bvar . fromString . show $ part aocId
+              s = var . fromString $ aocModuleName aocId <> ".solution"
+             in
+              match [conP "AocId" [y, d, p]] (var "Just" @@ s)
+          | aocId <- aocIds
+          ]
+          ++ [match [wildP] (var "Nothing")]
+    ]
 
 solutionModule :: AocId -> HsModule'
 solutionModule aocId =
-    module'
-        (Just $ fromString . aocModuleName $ aocId)
-        (Just [var "solution"])
-        []
-        [ typeSig "solution" solutionType
-        , funBind "solution" $ match [wildP] (bvar "0")
-        ]
+  module'
+    (Just $ fromString . aocModuleName $ aocId)
+    (Just [var "solution"])
+    []
+    [ typeSig "solution" solutionType
+    , funBind "solution" $ match [wildP] (bvar "0")
+    ]
 
 testModule :: AocId -> HsModule'
 testModule aocId =
-    module'
-        (Just . fromString $ aocModuleName aocId <> "Spec")
-        (Just [var "spec"])
-        [ import' $ fromString (aocModuleName aocId)
-        , import' "Test.HSpec"
-        ]
-        [ typeSig "spec" $ var "Spec"
-        , funBind "spec" $ match [] (var "describe" @@ string (aocModuleName aocId) @@ var "pending")
-        ]
+  module'
+    (Just . fromString $ aocModuleName aocId <> "Spec")
+    (Just [var "spec"])
+    [ import' $ fromString (aocModuleName aocId)
+    , import' "Test.HSpec"
+    ]
+    [ typeSig "spec" $ var "Spec"
+    , funBind "spec" $ match [] (var "describe" @@ string (aocModuleName aocId) @@ var "pending")
+    ]
 
 genModule :: HsModule' -> IO String
 genModule hsmod =
-    runGhc (Just libdir) $
-        getSessionDynFlags <&> showPpr `flip` hsmod
+  runGhc (Just libdir) $
+    getSessionDynFlags <&> showPpr `flip` hsmod

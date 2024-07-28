@@ -18,15 +18,15 @@ aocTokenVar = "AOC_TOKEN"
 
 missingTokenErrorMessage :: String
 missingTokenErrorMessage =
-    "Please provide the session token via the `" <> aocTokenVar <> "` environment variable"
+  "Please provide the session token via the `" <> aocTokenVar <> "` environment variable"
 
 getToken :: IO String
 getToken = lookupEnv aocTokenVar >>= maybe (fail missingTokenErrorMessage) return
 
 getInput :: AocId -> IO String
 getInput (AocId year day _) = do
-    let url = formatUrl year day
-    token <- getToken <&> fromString
-    req <- parseRequest url <&> addRequestHeader "cookie" token
-    res <- httpBS req <&> getResponseBody
-    return $ res & toString
+  let url = formatUrl year day
+  token <- getToken <&> fromString
+  req <- parseRequest url <&> addRequestHeader "cookie" token
+  res <- httpBS req <&> getResponseBody
+  return $ res & toString
