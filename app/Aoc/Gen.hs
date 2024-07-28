@@ -14,7 +14,7 @@ aocModuleName :: AocId -> String
 aocModuleName (AocId y d p) = printf "Aoc.Year%d.Day%02d.Part%d" y d p
 
 solutionType :: HsType'
-solutionType = var "String" --> var "Int"
+solutionType = var "String" --> var "Either" @@ var "String" @@ var "Int"
 
 mapModule :: [AocId] -> HsModule'
 mapModule aocIds =
