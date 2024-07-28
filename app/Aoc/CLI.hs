@@ -7,17 +7,18 @@ data Options = Options
   , aocCommand :: Command
   }
 
-data AocId = AocId {year :: Int, day :: Int}
+data AocId = AocId {year :: Int, day :: Int, part :: Int}
 data Command = Init | Solve deriving (Read, Show, Eq)
 
-makeOptions :: Int -> Int -> Command -> Options
-makeOptions year day = Options (AocId year day)
+makeOptions :: Int -> Int -> Int -> Command -> Options
+makeOptions year day part = Options (AocId year day part)
 
 options :: Parser Options
 options =
   makeOptions
     <$> argument auto (metavar "YEAR")
     <*> argument auto (metavar "DAY")
+    <*> argument auto (metavar "PART")
     <*> hsubparser (initCommand <> solveCommand)
  where
   initCommand =

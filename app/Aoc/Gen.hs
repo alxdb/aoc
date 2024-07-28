@@ -11,7 +11,10 @@ import GHC.SourceGen
 import Text.Printf
 
 aocModuleName :: AocId -> String
-aocModuleName (AocId y d) = printf "Aoc.Year%d.Day%02d" y d
+aocModuleName (AocId y d p) = printf "Aoc.Year%d.Day%02d.Part%d" y d p
+
+solutionType :: HsType'
+solutionType = var "String" --> var "Int"
 
 mapModule :: [AocId] -> HsModule'
 mapModule aocIds =
@@ -21,21 +24,44 @@ mapModule aocIds =
     ( import' "Aoc.CLI"
         : [qualified' . import' $ fromString (aocModuleName aocId) | aocId <- aocIds]
     )
-    [ typeSig "getSolution" $ var "AocId" --> var "Maybe" @@ (var "String" --> var "Int")
+    [ typeSig "getSolution" $ var "AocId" --> var "Maybe" @@ solutionType
     , funBinds
         "getSolution"
         $ [ let
               y = bvar . fromString . show $ year aocId
               d = bvar . fromString . printf "%02d" $ day aocId
+              p = bvar . fromString . show $ part aocId
               s = var . fromString $ aocModuleName aocId <> ".solution"
              in
-              match [conP "AocId" [y, d]] (var "Just" @@ s)
+              match [conP "AocId" [y, d, p]] (var "Just" @@ s)
           | aocId <- aocIds
           ]
           ++ [match [wildP] (var "Nothing")]
     ]
 
-genModule :: [AocId] -> ([AocId] -> HsModule') -> IO String
-genModule aocIds modGen =
+solutionModule :: AocId -> HsModule'
+solutionModule aocId =
+  module'
+    (Just $ fromString . aocModuleName $ aocId)
+    (Just [var "solution"])
+    []
+    [ typeSig "solution" solutionType
+    , funBind "solution" $ match [wildP] (bvar "0")
+    ]
+
+testModule :: AocId -> HsModule'
+testModule aocId =
+  module'
+    (Just . fromString $ aocModuleName aocId <> "Spec")
+    (Just [var "spec"])
+    [ import' $ fromString (aocModuleName aocId)
+    , import' "Test.HSpec"
+    ]
+    [ typeSig "spec" $ var "Spec"
+    , funBind "spec" $ match [] (var "describe" @@ string (aocModuleName aocId) @@ var "pending")
+    ]
+
+genModule :: HsModule' -> IO String
+genModule hsmod =
   runGhc (Just libdir) $
-    getSessionDynFlags <&> showPpr `flip` modGen aocIds
+    getSessionDynFlags <&> showPpr `flip` hsmod
