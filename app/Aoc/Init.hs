@@ -9,6 +9,7 @@ import Data.Functor
 import Data.Maybe
 import System.Directory
 import System.FilePath
+import System.Process
 import Text.ParserCombinators.ReadP
 import Text.Printf
 
@@ -21,6 +22,9 @@ runInit aocId = do
   getCurrentSolutions
     >>= genModule . mapModule
     >>= writeFile "app/Aoc/Map.hs"
+  callCommand "hpack"
+  forM_ [solutionModuleFileName aocId, testModuleFileName aocId, "app/Aoc/Map.hs"] $ \moduleFileName ->
+    callCommand $ "fourmolu -i " <> moduleFileName
 
 getCurrentSolutions :: IO [AocId]
 getCurrentSolutions = do

@@ -11,7 +11,7 @@ function-arrows: leading
 comma-style: leading
 
 # Styling of import/export lists (choices: leading, trailing, or diff-friendly)
-import-export-style: leading
+import-export-style: diff-friendly
 
 # Whether to full-indent or half-indent 'where' bindings past the preceding body
 indent-wheres: false

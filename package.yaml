@@ -28,6 +28,7 @@ executables:
       - ghc-source-gen
       - http-conduit
       - optparse-applicative
+      - process
       - utf8-string
 
 tests:
