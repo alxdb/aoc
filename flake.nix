@@ -22,6 +22,7 @@
               cabal-install
               ghc
               hpack
+              haskellPackages.fourmolu
               # https://github.com/haskell/haskell-language-server/issues/176
               haskellPackages.hspec-discover
               # For http support in haskell
