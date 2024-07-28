@@ -21,6 +21,8 @@ executables:
       - base
       - bytestring
       - directory
+      - extra
+      - filepath
       - ghc
       - ghc-paths
       - ghc-source-gen

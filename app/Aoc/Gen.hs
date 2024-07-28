@@ -20,7 +20,7 @@ mapModule :: [AocId] -> HsModule'
 mapModule aocIds =
   module'
     (Just "Aoc.Map")
-    (Just [var "getSolution"])
+    Nothing
     ( import' "Aoc.CLI"
         : [qualified' . import' $ fromString (aocModuleName aocId) | aocId <- aocIds]
     )
@@ -55,10 +55,10 @@ testModule aocId =
     (Just . fromString $ aocModuleName aocId <> "Spec")
     (Just [var "spec"])
     [ import' $ fromString (aocModuleName aocId)
-    , import' "Test.HSpec"
+    , import' "Test.Hspec"
     ]
     [ typeSig "spec" $ var "Spec"
-    , funBind "spec" $ match [] (var "describe" @@ string (aocModuleName aocId) @@ var "pending")
+    , funBind "spec" $ match [] (var "describe" @@ string (aocModuleName aocId) @@ var "undefined")
     ]
 
 genModule :: HsModule' -> IO String

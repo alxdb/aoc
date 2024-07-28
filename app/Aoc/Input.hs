@@ -20,8 +20,15 @@ missingTokenErrorMessage :: String
 missingTokenErrorMessage =
   "Please provide the session token via the `" <> aocTokenVar <> "` environment variable"
 
+invalidInputResponse :: String
+invalidInputResponse =
+  "Please update the value of the session token in the `" <> aocTokenVar <> "` environment variable"
+
 getToken :: IO String
 getToken = lookupEnv aocTokenVar >>= maybe (fail missingTokenErrorMessage) return
+
+isValidInput :: String -> Bool
+isValidInput input = input /= "Puzzle inputs differ by user.  Please log in to get your puzzle input.\n"
 
 getInput :: AocId -> IO String
 getInput (AocId year day _) = do
@@ -29,4 +36,7 @@ getInput (AocId year day _) = do
   token <- getToken <&> fromString
   req <- parseRequest url <&> addRequestHeader "cookie" token
   res <- httpBS req <&> getResponseBody
-  return $ res & toString
+  let input = res & toString
+  if isValidInput input
+    then return input
+    else fail invalidInputResponse
