@@ -1,4 +1,4 @@
-module AocSpec where
+module AocSpec (spec) where
 
 import Test.Hspec
 
