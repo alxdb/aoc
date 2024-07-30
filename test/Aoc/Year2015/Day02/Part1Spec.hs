@@ -13,4 +13,5 @@ spec = describe "solution" $ do
       solution
       [ makeCase "2x3x4" 58
       , makeCase "1x1x10" 43
+      , makeCase "1x1x10\n2x3x4" (58 + 43)
       ]
