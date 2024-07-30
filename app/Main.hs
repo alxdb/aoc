@@ -12,7 +12,8 @@ main = do
     Solve -> case getSolution aocId of
       Just solution -> do
         input <- readFile $ inputDataFileName aocId
-        case solution input of
+        -- init strips final newline
+        case solution (init input) of
           Right answer -> print answer
           Left errorMsg -> error errorMsg
       Nothing -> error "not yet solved, please initialize"
