@@ -1,4 +1,7 @@
-module Aoc.Init (runInit) where
+module Aoc.Init (
+  runInit,
+  inputDataFileName,
+) where
 
 import Aoc.CLI
 import Aoc.Gen
