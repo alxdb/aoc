@@ -58,7 +58,7 @@ testModule aocId =
     , import' "Test.Hspec"
     ]
     [ typeSig "spec" $ var "Spec"
-    , funBind "spec" $ match [] (var "describe" @@ string (aocModuleName aocId) @@ var "undefined")
+    , funBind "spec" $ match [] (var "describe" @@ string "solution" @@ var "undefined")
     ]
 
 genModule :: HsModule' -> IO String
