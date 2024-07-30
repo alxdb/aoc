@@ -3,6 +3,7 @@
 module Aoc.Input (getInput) where
 
 import Aoc.CLI
+import Data.ByteString.Char8 as C
 import Data.ByteString.UTF8
 import Data.Function
 import Data.Functor
@@ -36,7 +37,7 @@ getInput (AocId year day _) = do
   token <- getToken <&> fromString
   req <- parseRequest url <&> addRequestHeader "cookie" token
   res <- httpBS req <&> getResponseBody
-  let input = res <> "\n" & toString
+  let input = (if C.last res == '\n' then res else res <> "\n") & toString
   if isValidInput input
     then return input
     else fail invalidInputResponse
