@@ -56,9 +56,15 @@ testModule aocId =
     (Just [var "spec"])
     [ import' $ fromString (aocModuleName aocId)
     , import' "Test.Hspec"
+    , import' "Aoc.TestCases"
     ]
     [ typeSig "spec" $ var "Spec"
-    , funBind "spec" $ match [] (var "describe" @@ string "solution" @@ var "undefined")
+    , funBind "spec" $
+        match [] $
+          op
+            (var "describe" @@ string "solution")
+            "$"
+            (var "testCasesSpec" @@ var "solution" @@ var "[]")
     ]
 
 genModule :: HsModule' -> IO String

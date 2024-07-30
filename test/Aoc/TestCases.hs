@@ -1,4 +1,4 @@
-module Aoc.TestCases (testCases, makeCase, nameCase) where
+module Aoc.TestCases (testCasesSpec, makeCase, nameCase) where
 
 import Test.Hspec
 
@@ -12,7 +12,10 @@ nameCase name = TestCase (Just name)
 
 testCases :: (String -> Either String Int) -> [TestCase] -> SpecWith ()
 testCases solution = mapM_ f
-  where
-    f :: TestCase -> SpecWith (Arg Expectation)
-    f (TestCase (Just name) input expected) = it name $ do solution input `shouldBe` Right expected
-    f (TestCase Nothing input expected) = it input $ do solution input `shouldBe` Right expected
+ where
+  f :: TestCase -> SpecWith (Arg Expectation)
+  f (TestCase (Just name) input expected) = it name $ do solution input `shouldBe` Right expected
+  f (TestCase Nothing input expected) = it input $ do solution input `shouldBe` Right expected
+
+testCasesSpec :: (String -> Either String Int) -> [TestCase] -> SpecWith ()
+testCasesSpec solution cases = context "solves the examples" $ testCases solution cases

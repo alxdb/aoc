@@ -7,9 +7,9 @@ import Aoc.Year2015.Day02.Part1
 import Test.Hspec
 
 spec :: Spec
-spec = describe "solution" $ do
-  context "solves the examples" $
-    testCases
+spec =
+  describe "solution" $
+    testCasesSpec
       solution
       [ makeCase "2x3x4" 58
       , makeCase "1x1x10" 43
