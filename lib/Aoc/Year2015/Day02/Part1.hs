@@ -1,5 +1,7 @@
 module Aoc.Year2015.Day02.Part1 (
   solution,
+  Present (..),
+  parsePresents,
 ) where
 
 import Aoc.Parser
@@ -21,5 +23,8 @@ presentP = do
   [l, w, h] <- decimal `sepBy` char 'x'
   return $ Present l w h
 
+parsePresents :: String -> Either String [Present]
+parsePresents = parse (presentP `sepBy` char '\n')
+
 solution :: String -> Either String Int
-solution = fmap (sum . map wrappingPaper) . parse (presentP `sepBy` char '\n')
+solution = fmap (sum . map wrappingPaper) . parsePresents
