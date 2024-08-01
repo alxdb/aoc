@@ -18,13 +18,13 @@ wrappingPaper (Present l w h) = (2 * a) + (2 * b) + (2 * c) + minimum [a, b, c]
   b = w * h
   c = h * l
 
-presentP :: Parser Present
-presentP = do
-  [l, w, h] <- decimal `sepBy` char 'x'
-  return $ Present l w h
-
 parsePresents :: String -> Either String [Present]
-parsePresents = parse (presentP `sepBy` char '\n')
+parsePresents = parse (p `sepBy` char '\n')
+ where
+  p :: Parser Present
+  p = do
+    [l, w, h] <- decimal `sepBy` char 'x'
+    return $ Present l w h
 
 solution :: String -> Either String Int
 solution = fmap (sum . map wrappingPaper) . parsePresents

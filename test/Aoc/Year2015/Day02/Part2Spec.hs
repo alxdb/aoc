@@ -11,6 +11,6 @@ spec =
   describe "solution" $
     testCasesSpec
       solution
-      [ makeCase "2x3x4" 10
+      [ makeCase "2x3x4" 34
       , makeCase "1x1x10" 14
       ]
