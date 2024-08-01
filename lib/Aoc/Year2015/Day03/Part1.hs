@@ -1,30 +1,32 @@
 module Aoc.Year2015.Day03.Part1 (
   solution,
+  readDir,
+  moveSanta,
 ) where
 
 import Data.Bifunctor
 import Data.Functor
-import Data.Maybe
-import Data.Set.Ordered (OSet, (|<))
-import Data.Set.Ordered qualified as OSet
+import Data.Set qualified as Set
 
-data Direction = N | E | S | W deriving (Eq)
+data Direction = N | E | S | W
 
 readDir :: Char -> Either String Direction
 readDir '^' = Right N
-readDir '>' = Right E
 readDir 'v' = Right S
+readDir '>' = Right E
 readDir '<' = Right W
 readDir c = Left $ "unexpected char: " $> c
 
-lastVisited :: OSet (Int, Int) -> (Int, Int)
-lastVisited = fromJust . flip OSet.elemAt 0
+moveSanta :: Direction -> (Int, Int) -> (Int, Int)
+moveSanta N = second succ
+moveSanta S = second pred
+moveSanta E = first succ
+moveSanta W = first pred
 
 solution :: String -> Either String Int
-solution = fmap (OSet.size . foldl f (OSet.singleton (0, 0))) . mapM readDir
+solution = fmap f . mapM readDir
  where
-  f :: OSet (Int, Int) -> Direction -> OSet (Int, Int)
-  f visited N = second succ (lastVisited visited) |< visited
-  f visited E = first succ (lastVisited visited) |< visited
-  f visited S = second pred (lastVisited visited) |< visited
-  f visited W = first pred (lastVisited visited) |< visited
+  f = Set.size . snd . foldl g ((0, 0), Set.singleton (0, 0))
+  g (lastHouse, visited) direction =
+    let nextHouse = moveSanta direction lastHouse
+     in (nextHouse, Set.insert nextHouse visited)

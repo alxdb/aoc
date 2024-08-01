@@ -12,7 +12,6 @@ library:
   dependencies:
     - base
     - containers
-    - ordered-containers
     - megaparsec
 
 executables:
