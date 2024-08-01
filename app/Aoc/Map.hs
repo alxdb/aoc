@@ -7,12 +7,15 @@ import Aoc.Year2015.Day02.Part1 qualified
 import Aoc.Year2015.Day02.Part2 qualified
 import Aoc.Year2015.Day03.Part1 qualified
 import Aoc.Year2015.Day03.Part2 qualified
+import Aoc.Year2015.Day04.Part1 qualified
 
 getSolution :: AocId -> Maybe (String -> Either String Int)
 getSolution (AocId 2015 02 2) =
   Just Aoc.Year2015.Day02.Part2.solution
 getSolution (AocId 2015 02 1) =
   Just Aoc.Year2015.Day02.Part1.solution
+getSolution (AocId 2015 04 1) =
+  Just Aoc.Year2015.Day04.Part1.solution
 getSolution (AocId 2015 01 2) =
   Just Aoc.Year2015.Day01.Part2.solution
 getSolution (AocId 2015 01 1) =
