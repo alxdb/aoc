@@ -11,6 +11,8 @@ library:
   source-dirs: lib
   dependencies:
     - base
+    - containers
+    - ordered-containers
     - megaparsec
 
 executables:
