@@ -17,7 +17,7 @@
         zigPkgs = zig.packages.${system};
       in
       {
-        devShell = pkgs.mkShell { buildInputs = with pkgs; [ zigPkgs.default ]; };
+        devShell = pkgs.mkShell { buildInputs = [ zigPkgs.default ]; };
       }
     );
 }

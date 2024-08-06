@@ -1,91 +1,101 @@
 const std = @import("std");
 
-// Although this function looks imperative, note that its job is to
-// declaratively construct a build graph that will be executed by an external
-// runner.
-pub fn build(b: *std.Build) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
-    const target = b.standardTargetOptions(.{});
+const Steps = struct {
+    compile: *std.Build.Step.Compile,
+    compile_test: *std.Build.Step.Compile,
+    run_test: *std.Build.Step.Run,
+};
 
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
+const StepOptions = struct {
+    name: []const u8,
+    root_source_file: std.Build.LazyPath,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+};
+
+pub fn build(b: *std.Build) !void {
+    const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "aoc_zig",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
+    const root = addCompileSteps(std.Build.StaticLibraryOptions, b, .{
+        .name = "aoc",
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    // This declares intent for the library to be installed into the standard
-    // location when the user invokes the "install" step (the default step when
-    // running `zig build`).
-    b.installArtifact(lib);
+    var solution_tests = std.ArrayList(*std.Build.Step.Run).init(b.allocator);
+    {
+        const solutions_dir_name = "solutions";
+        const solutions_dir = b.path(solutions_dir_name).getPath(b);
+        var dir = try std.fs.cwd().openDir(solutions_dir, .{ .iterate = true });
+        defer dir.close();
 
-    const exe = b.addExecutable(.{
-        .name = "aoc_zig",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        var dir_iter = dir.iterate();
+        while (try dir_iter.next()) |entry| {
+            const solution_name = std.fs.path.stem(entry.name);
+            const solution_path = try std.fs.path.join(b.allocator, &.{ solutions_dir_name, entry.name });
+
+            const compile_steps = addCompileSteps(std.Build.ExecutableOptions, b, .{
+                .name = solution_name,
+                .root_source_file = b.path(solution_path),
+                .target = target,
+                .optimize = optimize,
+            });
+
+            const solution_run_step = try addRunStep(b, compile_steps, solution_name);
+            _ = solution_run_step;
+
+            try solution_tests.append(compile_steps.run_test);
+        }
+    }
+
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&root.run_test.step);
+    for (solution_tests.items) |solution_test| {
+        test_step.dependOn(&solution_test.step);
+    }
+}
+
+fn addCompileSteps(comptime T: type, b: *std.Build, options: StepOptions) Steps {
+    const compile = switch (T) {
+        std.Build.ExecutableOptions => b.addExecutable(.{
+            .name = options.name,
+            .root_source_file = options.root_source_file,
+            .target = options.target,
+            .optimize = options.optimize,
+        }),
+        std.Build.StaticLibraryOptions => b.addStaticLibrary(.{
+            .name = options.name,
+            .root_source_file = options.root_source_file,
+            .target = options.target,
+            .optimize = options.optimize,
+        }),
+        else => undefined,
+    };
+    b.installArtifact(compile);
+
+    const compile_test = b.addTest(.{
+        .root_source_file = options.root_source_file,
+        .target = options.target,
+        .optimize = options.optimize,
     });
+    const run_test = b.addRunArtifact(compile_test);
 
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
-    b.installArtifact(exe);
+    return .{
+        .compile = compile,
+        .compile_test = compile_test,
+        .run_test = run_test,
+    };
+}
 
-    // This *creates* a Run step in the build graph, to be executed when another
-    // step is evaluated that depends on it. The next line below will establish
-    // such a dependency.
-    const run_cmd = b.addRunArtifact(exe);
-
-    // By making the run step depend on the install step, it will be run from the
-    // installation directory rather than directly from within the cache directory.
-    // This is not necessary, however, if the application depends on other installed
-    // files, this ensures they will be present and in the expected location.
+fn addRunStep(b: *std.Build, steps: Steps, name: []const u8) !*std.Build.Step {
+    const run_cmd = b.addRunArtifact(steps.compile);
     run_cmd.step.dependOn(b.getInstallStep());
-
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build run`
-    // This will evaluate the `run` step rather than the default, which is "install".
-    const run_step = b.step("run", "Run the app");
+    const run_step = b.step(name, try std.fmt.allocPrint(b.allocator, "Run {s}", .{name}));
     run_step.dependOn(&run_cmd.step);
-
-    // Creates a step for unit testing. This only builds the test executable
-    // but does not run it.
-    const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-
-    const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
-    test_step.dependOn(&run_exe_unit_tests.step);
+    return run_step;
 }
