@@ -24,6 +24,14 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    const fetch_input = addCompileSteps(std.Build.ExecutableOptions, b, .{
+        .name = "fetch_input",
+        .root_source_file = b.path("src/fetch_input.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    _ = try addRunStep(b, fetch_input, "fetch_input");
+
     var solution_tests = std.ArrayList(*std.Build.Step.Run).init(b.allocator);
     {
         const solutions_dir_name = "solutions";
@@ -42,11 +50,17 @@ pub fn build(b: *std.Build) !void {
                 .target = target,
                 .optimize = optimize,
             });
+            compile_steps.compile.linkLibrary(root.compile);
 
-            const solution_run_step = try addRunStep(b, compile_steps, solution_name);
-            _ = solution_run_step;
-
+            _ = try addRunStep(b, compile_steps, solution_name);
             try solution_tests.append(compile_steps.run_test);
+
+            const fetch_input_step = b.addRunArtifact(fetch_input.compile);
+            fetch_input_step.addArg(solution_name);
+            const solution_input = fetch_input_step.captureStdOut();
+            compile_steps.compile.root_module.addAnonymousImport("input", .{
+                .root_source_file = solution_input,
+            });
         }
     }
 
@@ -89,7 +103,7 @@ fn addCompileSteps(comptime T: type, b: *std.Build, options: StepOptions) Steps 
     };
 }
 
-fn addRunStep(b: *std.Build, steps: Steps, name: []const u8) !*std.Build.Step {
+fn addRunStep(b: *std.Build, steps: Steps, name: []const u8) !*std.Build.Step.Run {
     const run_cmd = b.addRunArtifact(steps.compile);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
@@ -97,5 +111,5 @@ fn addRunStep(b: *std.Build, steps: Steps, name: []const u8) !*std.Build.Step {
     }
     const run_step = b.step(name, try std.fmt.allocPrint(b.allocator, "Run {s}", .{name}));
     run_step.dependOn(&run_cmd.step);
-    return run_step;
+    return run_cmd;
 }
