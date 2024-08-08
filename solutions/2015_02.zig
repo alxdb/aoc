@@ -1,5 +1,4 @@
 const std = @import("std");
-
 const input = @embedFile("input");
 
 const Box = struct {
@@ -9,10 +8,22 @@ const Box = struct {
 
     pub fn parse(line: []const u8) !Box {
         var iter = std.mem.splitSequence(u8, line, "x");
+
+        const Parser = struct {
+            iter: @TypeOf(&iter),
+
+            pub fn nextInt(self: *@This()) !u32 {
+                const next = self.iter.next() orelse
+                    return error.InvalidInput;
+                return try std.fmt.parseInt(u32, next, 0);
+            }
+        };
+        var parser = Parser{ .iter = &iter };
+
         return .{
-            .l = try std.fmt.parseInt(u32, iter.next() orelse return error.InvalidInput, 0),
-            .w = try std.fmt.parseInt(u32, iter.next() orelse return error.InvalidInput, 0),
-            .h = try std.fmt.parseInt(u32, iter.next() orelse return error.InvalidInput, 0),
+            .l = try parser.nextInt(),
+            .w = try parser.nextInt(),
+            .h = try parser.nextInt(),
         };
     }
 };
@@ -23,7 +34,11 @@ fn part1() !u32 {
 
     while (input_iter.next()) |line| {
         const box = try Box.parse(line);
-        const surface_areas = [_]u32{ box.l * box.w, box.w * box.h, box.h * box.l };
+        const surface_areas = [_]u32{
+            box.l * box.w,
+            box.w * box.h,
+            box.h * box.l,
+        };
 
         var min_area: u32 = std.math.maxInt(u32);
         for (surface_areas) |area| {
@@ -59,4 +74,9 @@ fn part2() !u32 {
 pub fn main() !void {
     std.log.info("answer to part 1 is {}", .{try part1()});
     std.log.info("answer to part 2 is {}", .{try part2()});
+}
+
+test "solutions" {
+    try std.testing.expectEqual(1588178, try part1());
+    try std.testing.expectEqual(3783758, try part2());
 }

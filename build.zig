@@ -36,20 +36,30 @@ pub fn build(b: *std.Build) !void {
     {
         const solutions_dir_name = "solutions";
         const solutions_dir = b.path(solutions_dir_name).getPath(b);
-        var dir = try std.fs.cwd().openDir(solutions_dir, .{ .iterate = true });
+        var dir = try std.fs.cwd().openDir(
+            solutions_dir,
+            .{ .iterate = true },
+        );
         defer dir.close();
 
         var dir_iter = dir.iterate();
         while (try dir_iter.next()) |entry| {
             const solution_name = std.fs.path.stem(entry.name);
-            const solution_path = try std.fs.path.join(b.allocator, &.{ solutions_dir_name, entry.name });
+            const solution_path = try std.fs.path.join(
+                b.allocator,
+                &.{ solutions_dir_name, entry.name },
+            );
 
-            const compile_steps = addCompileSteps(std.Build.ExecutableOptions, b, .{
-                .name = solution_name,
-                .root_source_file = b.path(solution_path),
-                .target = target,
-                .optimize = optimize,
-            });
+            const compile_steps = addCompileSteps(
+                std.Build.ExecutableOptions,
+                b,
+                .{
+                    .name = solution_name,
+                    .root_source_file = b.path(solution_path),
+                    .target = target,
+                    .optimize = optimize,
+                },
+            );
             compile_steps.compile.linkLibrary(root.compile);
 
             _ = try addRunStep(b, compile_steps, solution_name);
@@ -58,9 +68,14 @@ pub fn build(b: *std.Build) !void {
             const fetch_input_step = b.addRunArtifact(fetch_input.compile);
             fetch_input_step.addArg(solution_name);
             const solution_input = fetch_input_step.captureStdOut();
-            compile_steps.compile.root_module.addAnonymousImport("input", .{
-                .root_source_file = solution_input,
-            });
+            compile_steps.compile.root_module.addAnonymousImport(
+                "input",
+                .{ .root_source_file = solution_input },
+            );
+            compile_steps.compile_test.root_module.addAnonymousImport(
+                "input",
+                .{ .root_source_file = solution_input },
+            );
         }
     }
 
@@ -71,7 +86,11 @@ pub fn build(b: *std.Build) !void {
     }
 }
 
-fn addCompileSteps(comptime T: type, b: *std.Build, options: StepOptions) Steps {
+fn addCompileSteps(
+    comptime T: type,
+    b: *std.Build,
+    options: StepOptions,
+) Steps {
     const compile = switch (T) {
         std.Build.ExecutableOptions => b.addExecutable(.{
             .name = options.name,
@@ -103,13 +122,20 @@ fn addCompileSteps(comptime T: type, b: *std.Build, options: StepOptions) Steps 
     };
 }
 
-fn addRunStep(b: *std.Build, steps: Steps, name: []const u8) !*std.Build.Step.Run {
+fn addRunStep(
+    b: *std.Build,
+    steps: Steps,
+    name: []const u8,
+) !*std.Build.Step.Run {
     const run_cmd = b.addRunArtifact(steps.compile);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-    const run_step = b.step(name, try std.fmt.allocPrint(b.allocator, "Run {s}", .{name}));
+    const run_step = b.step(
+        name,
+        try std.fmt.allocPrint(b.allocator, "Run {s}", .{name}),
+    );
     run_step.dependOn(&run_cmd.step);
     return run_cmd;
 }
