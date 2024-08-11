@@ -1,3 +1,5 @@
+# idea
+
 have a separate tester tool, which will download inputs (to a global location like tmp),
 run the executables with that input and verify the results.
 
@@ -23,3 +25,23 @@ or assume they're on the path, and just put `target/debug` in the path while dev
 they should be in the path when installed.
 
 in fact, this could be used to test any suite of aoc solutions!
+
+# impl
+
+# run solution
+
+An executable is specified, where the executable name is the name of the day that needs to be solved.
+e.g. aoc2015_01, aoc2031_25 etc
+
+The local cache is checked for input, if it is not present, it is fetched from the API.
+The API key should be present specified as an environment variable.
+
+The executable is run with the input provided via stdin.
+
+The executable returns the output on stdout, one line per solution part, and exits with a non-zero status if there is an error.
+
+The answer cache is checked to see if the solution is already solved.
+If it is already solved, the provided answer is checked against the cached answer, and the status is returned.
+If is it not present in the cache, the user is prompted to check the answer on aoc, if it is correct, it is stored in the cache.
+If it is incorrect, the answer is discarded.
+

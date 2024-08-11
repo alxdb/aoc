@@ -5,3 +5,7 @@ edition = "2021"
 default-run = "aoc"
 
 [dependencies]
+anyhow = "1.0.86"
+clap = { version = "4.5.15", features = ["cargo", "derive", "env"] }
+dirs = "5.0.1"
+regex = "1.10.6"
