@@ -22,7 +22,7 @@
       in
       {
         devShells = {
-          default = pkgs.mkShell {
+          default = pkgs.mkShell rec {
             nativeBuildInputs = [
               (fenixPkgs.default.withComponents [
                 "cargo"
@@ -30,7 +30,10 @@
                 "rustc"
                 "rustfmt"
               ])
+              pkgs.pkg-config
             ];
+            buildInputs = [ pkgs.openssl ];
+            LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}";
           };
         };
       }
