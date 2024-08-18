@@ -64,7 +64,7 @@ mod input_cache {
         let input_path = dirs::cache_dir()
             .unwrap()
             .join("aoc")
-            .join(format!("input_{}_{}", aoc_id.year, aoc_id.day));
+            .join(format!("input_{:02}_{:02}", aoc_id.year, aoc_id.day));
         fs::create_dir_all(input_path.parent().unwrap()).or_else(|e| match e.kind() {
             ErrorKind::AlreadyExists => Ok(()),
             _ => Err(e),
