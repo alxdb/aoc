@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -17,10 +17,10 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Run a solution
-    RunSolution { solution: String },
+    RunSolution(AocId),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Args, Debug, Clone, Copy)]
 struct AocId {
     year: u32,
     day: u32,
@@ -29,8 +29,8 @@ struct AocId {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::RunSolution { solution } => {
-            let aoc_id = parse_solution_name(&solution)?;
+        Commands::RunSolution(aoc_id) => {
+            //let aoc_id = parse_solution_name(&solution)?;
             println!("Running solution: {aoc_id:?}");
             let input = input_cache::get_input(&aoc_id, &cli.aoc_token)?;
             println!("Fetched input: len={}", input.len());
