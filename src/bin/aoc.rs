@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use clap::{Args, Parser, Subcommand};
 
 /// Run and test AOC solutions
@@ -23,11 +25,17 @@ struct AocId {
     day: u32,
 }
 
+impl Display for AocId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Year 20{}, Day {}", self.year, self.day)
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::RunSolution(aoc_id) => {
-            println!("Running solution: {aoc_id:?}");
+            println!("Running solution: {aoc_id}");
             let input = input_cache::get_input(&aoc_id, &cli.aoc_token)?;
             println!("Fetched input: len={}", input.len());
         }
