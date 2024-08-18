@@ -57,16 +57,15 @@ mod input_cache {
     use std::io::{ErrorKind, Write};
 
     fn fetch_input(aoc_id: &AocId, aoc_token: &str) -> anyhow::Result<Vec<u8>> {
-        let client = reqwest::blocking::Client::new();
-        let res = client
+        let response = reqwest::blocking::Client::new()
             .get(format!(
-                "https://adventofcode.com/{}/day/{}/input",
+                "https://adventofcode.com/20{}/day/{}/input",
                 aoc_id.year, aoc_id.day
             ))
             .header("COOKIE", format!("session={aoc_token}"))
-            .send()?;
-        // TODO: Handle errors correctly
-        Ok(res.bytes()?.into())
+            .send()?
+            .error_for_status()?;
+        Ok(response.bytes()?.into())
     }
 
     pub fn get_input(aoc_id: &AocId, aoc_token: &str) -> anyhow::Result<String> {
@@ -78,18 +77,19 @@ mod input_cache {
             ErrorKind::AlreadyExists => Ok(()),
             _ => Err(e),
         })?;
-
-        // TODO: delete file on error?
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&input_path)
-        {
-            Ok(mut f) => f.write_all(&fetch_input(aoc_id, aoc_token)?)?,
-            Err(e) => match e.kind() {
-                ErrorKind::AlreadyExists => (),
-                _ => return Err(anyhow::Error::from(e)),
-            },
+        if !input_path.exists() {
+            let input = fetch_input(aoc_id, aoc_token)?;
+            match OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&input_path)
+            {
+                Ok(mut f) => f.write_all(&input)?,
+                Err(e) => match e.kind() {
+                    ErrorKind::AlreadyExists => (),
+                    _ => return Err(anyhow::Error::from(e)),
+                },
+            }
         }
 
         Ok(fs::read_to_string(&input_path)?)
