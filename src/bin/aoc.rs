@@ -36,8 +36,9 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::RunSolution(aoc_id) => {
             println!("Running solution: {aoc_id}");
-            let input = input_cache::get_input(&aoc_id, &cli.aoc_token)?;
-            println!("Fetched input: len={}", input.len());
+            let input_path = input_cache::get_input_path(&aoc_id, &cli.aoc_token)?;
+            let [part1, part2] = solution_runner::run_solution(&aoc_id, &input_path)?;
+            println!("Solution result is: part1={part1} part2={part2}");
         }
     }
     Ok(())
@@ -47,6 +48,7 @@ mod input_cache {
     use crate::AocId;
     use std::fs::{self, OpenOptions};
     use std::io::{ErrorKind, Write};
+    use std::path::PathBuf;
 
     fn fetch_input(aoc_id: &AocId, aoc_token: &str) -> anyhow::Result<Vec<u8>> {
         let response = reqwest::blocking::Client::new()
@@ -60,11 +62,12 @@ mod input_cache {
         Ok(response.bytes()?.into())
     }
 
-    pub fn get_input(aoc_id: &AocId, aoc_token: &str) -> anyhow::Result<String> {
+    pub fn get_input_path(aoc_id: &AocId, aoc_token: &str) -> anyhow::Result<PathBuf> {
         let input_path = dirs::cache_dir()
             .unwrap()
             .join("aoc")
             .join(format!("input_{:02}_{:02}", aoc_id.year, aoc_id.day));
+
         fs::create_dir_all(input_path.parent().unwrap()).or_else(|e| match e.kind() {
             ErrorKind::AlreadyExists => Ok(()),
             _ => Err(e),
@@ -83,7 +86,31 @@ mod input_cache {
                 },
             }
         }
+        Ok(input_path)
+    }
+}
 
-        Ok(fs::read_to_string(&input_path)?)
+mod solution_runner {
+    use crate::AocId;
+    use anyhow::anyhow;
+    use std::fs::File;
+    use std::path::PathBuf;
+    use std::process::Command;
+    use std::str::from_utf8;
+
+    pub fn run_solution(aoc_id: &AocId, input_path: &PathBuf) -> anyhow::Result<[u64; 2]> {
+        let solution_exe = format!("aoc{:02}_{:02}", aoc_id.year, aoc_id.day);
+        let input_file = File::open(input_path)?;
+        let solution_output = Command::new(solution_exe).stdin(input_file).output()?;
+        if !solution_output.status.success() {
+            Err(anyhow!("Failed to execute solution"))?
+        }
+        let solutions = solution_output
+            .stdout
+            .split(|x| *x == b'\n')
+            .take(2)
+            .map(|x| Ok(from_utf8(x)?.parse()?))
+            .collect::<anyhow::Result<Vec<u64>>>()?;
+        Ok([solutions[0], solutions[1]])
     }
 }
