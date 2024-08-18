@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Instant};
 
 use clap::{Args, Parser, Subcommand};
 use regex::Regex;
@@ -38,14 +38,17 @@ fn main() -> anyhow::Result<()> {
         Commands::RunSolution(aoc_id) => {
             println!("Running solution: {aoc_id}");
             let input_path = cache::get_input_path(&aoc_id, &cli.aoc_token)?;
+            let solution_start = Instant::now();
             let solution_answers = solution_runner::run_solution(&aoc_id, &input_path)?;
+            let solution_elapsed = solution_start.elapsed();
+            println!("Solution executed in {:.2?}", solution_elapsed);
             println!(
                 "Solution result is: part1={} part2={}",
                 solution_answers[0], solution_answers[1]
             );
 
             let cached_answers = cache::get_answers(&aoc_id)?;
-            let yes_re = Regex::new("^(y|Y)?$")?;
+            let yes_re = Regex::new("^(y|Y)$")?;
             for (i, (cached_answer, solution_answer)) in cached_answers
                 .into_iter()
                 .zip(solution_answers.into_iter())
@@ -63,9 +66,9 @@ fn main() -> anyhow::Result<()> {
                     }
                 } else {
                     let response =
-                        rprompt::prompt_reply(format!("Is part{} correct? (Y/n) ", part_num))?;
+                        rprompt::prompt_reply(format!("Is part{} correct? (y/N) ", part_num))?;
                     if yes_re.is_match(&response) {
-                        cache::store_answer(&aoc_id, part_num, solution_answer)?;
+                        cache::store_answer(&aoc_id, part_num, &solution_answer)?;
                         println!("Stored answer");
                     } else {
                         println!("Not storing answer");
@@ -135,7 +138,7 @@ mod cache {
         Ok(answer_path)
     }
 
-    pub fn store_answer(aoc_id: &AocId, part_num: usize, answer: u64) -> anyhow::Result<()> {
+    pub fn store_answer(aoc_id: &AocId, part_num: usize, answer: &str) -> anyhow::Result<()> {
         let answer_path = get_answer_path(aoc_id)?;
         match OpenOptions::new()
             .write(true)
@@ -150,29 +153,25 @@ mod cache {
         }
     }
 
-    pub fn get_answers(aoc_id: &AocId) -> anyhow::Result<[Option<u64>; 2]> {
+    pub fn get_answers(aoc_id: &AocId) -> anyhow::Result<[Option<String>; 2]> {
         let answer_path = get_answer_path(aoc_id)?;
         let answers = fs::read_dir(answer_path)?
             .map(|r| {
-                r.map_err(anyhow::Error::from)
-                    .and_then(|e| {
-                        Ok((
-                            e.path()
-                                .file_name()
-                                .ok_or(anyhow!("Cannot read filename in answers cache"))
-                                .and_then(|s| {
-                                    s.to_str().ok_or(anyhow!("Filepath is invalid utf-8"))
-                                })
-                                .map(|s| s.to_owned())?,
-                            fs::read_to_string(e.path())?,
-                        ))
-                    })
-                    .and_then(|(p, a)| Ok((p, a.parse::<u64>()?)))
+                r.map_err(anyhow::Error::from).and_then(|e| {
+                    Ok((
+                        e.path()
+                            .file_name()
+                            .ok_or(anyhow!("Cannot read filename in answers cache"))
+                            .and_then(|s| s.to_str().ok_or(anyhow!("Filepath is invalid utf-8")))
+                            .map(|s| s.to_owned())?,
+                        fs::read_to_string(e.path())?,
+                    ))
+                })
             })
-            .collect::<anyhow::Result<HashMap<String, u64>>>()?;
+            .collect::<anyhow::Result<HashMap<String, String>>>()?;
         Ok([
-            answers.get("part_1").copied(),
-            answers.get("part_2").copied(),
+            answers.get("part_1").cloned(),
+            answers.get("part_2").cloned(),
         ])
     }
 }
@@ -186,7 +185,7 @@ mod solution_runner {
     use std::process::Command;
     use std::str::from_utf8;
 
-    pub fn run_solution(aoc_id: &AocId, input_path: &PathBuf) -> anyhow::Result<[u64; 2]> {
+    pub fn run_solution(aoc_id: &AocId, input_path: &PathBuf) -> anyhow::Result<[String; 2]> {
         let solution_exe = format!("aoc{:02}_{:02}", aoc_id.year, aoc_id.day);
         let input_file = File::open(input_path)?;
         let solution_output = Command::new(&solution_exe)
@@ -206,12 +205,13 @@ mod solution_runner {
                 solution_error
             ))?
         }
-        let solutions = solution_output
+        solution_output
             .stdout
             .split(|x| *x == b'\n')
             .take(2)
-            .map(|x| Ok(from_utf8(x)?.parse()?))
-            .collect::<anyhow::Result<Vec<u64>>>()?;
-        Ok([solutions[0], solutions[1]])
+            .map(|x| Ok(from_utf8(x)?.to_owned()))
+            .collect::<anyhow::Result<Vec<String>>>()?
+            .try_into()
+            .map_err(|_| anyhow!("Solution returned less than 2 results"))
     }
 }
