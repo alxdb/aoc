@@ -1,7 +1,4 @@
-use anyhow::anyhow;
 use clap::{Args, Parser, Subcommand};
-use regex::Regex;
-use std::sync::OnceLock;
 
 /// Run and test AOC solutions
 #[derive(Parser)]
@@ -30,25 +27,12 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::RunSolution(aoc_id) => {
-            //let aoc_id = parse_solution_name(&solution)?;
             println!("Running solution: {aoc_id:?}");
             let input = input_cache::get_input(&aoc_id, &cli.aoc_token)?;
             println!("Fetched input: len={}", input.len());
         }
     }
     Ok(())
-}
-
-fn parse_solution_name(solution_name: &str) -> anyhow::Result<AocId> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"aoc(\d{2})_(\d{2})$").unwrap())
-        .captures(solution_name)
-        .map(|caps| caps.extract())
-        .ok_or(anyhow!("Solution name {} invalid", solution_name))
-        .map(|(_, [year, day])| AocId {
-            year: year.parse().unwrap(),
-            day: day.parse().unwrap(),
-        })
 }
 
 mod input_cache {
