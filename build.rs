@@ -5,9 +5,13 @@ fn get_env(key: &str) -> Result<OsString, String> {
 }
 
 const AOC_PREFIX: &str = stringify!(
-    fn main() {
-        println!("answer to part 1: {}", part1());
-        println!("answer to part 2: {}", part2());
+    fn main() -> Result<(), Box<dyn std::error::Error>> {
+        use std::io::Read;
+        let mut input = String::new();
+        std::io::stdin().read_to_string(&mut input)?;
+        println!("{}", part1(&input));
+        println!("{}", part2(&input));
+        Ok(())
     }
 );
 
