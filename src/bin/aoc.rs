@@ -94,6 +94,7 @@ mod solution_runner {
     use crate::AocId;
     use anyhow::anyhow;
     use std::fs::File;
+    use std::io::ErrorKind;
     use std::path::PathBuf;
     use std::process::Command;
     use std::str::from_utf8;
@@ -101,9 +102,22 @@ mod solution_runner {
     pub fn run_solution(aoc_id: &AocId, input_path: &PathBuf) -> anyhow::Result<[u64; 2]> {
         let solution_exe = format!("aoc{:02}_{:02}", aoc_id.year, aoc_id.day);
         let input_file = File::open(input_path)?;
-        let solution_output = Command::new(solution_exe).stdin(input_file).output()?;
+        let solution_output = Command::new(solution_exe.clone())
+            .stdin(input_file)
+            .output()
+            .map_err(|e| match e.kind() {
+                ErrorKind::NotFound => {
+                    anyhow!("Could not find solution `{}`", solution_exe)
+                }
+                _ => e.into(),
+            })?;
         if !solution_output.status.success() {
-            Err(anyhow!("Failed to execute solution"))?
+            let solution_error = from_utf8(&solution_output.stderr)?;
+            Err(anyhow!(
+                "Failed to execute solution: status=`{}` stderr follows:\n{}",
+                solution_output.status,
+                solution_error
+            ))?
         }
         let solutions = solution_output
             .stdout
