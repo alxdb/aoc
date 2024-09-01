@@ -1,6 +1,6 @@
 use std::{collections::HashSet, iter::Map, str::Chars};
 
-include!(concat!(env!("OUT_DIR"), "/aoc_prefix.rs"));
+aoc::main!();
 
 struct Dir(i8);
 

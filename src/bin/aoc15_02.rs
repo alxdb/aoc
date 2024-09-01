@@ -1,4 +1,4 @@
-include!(concat!(env!("OUT_DIR"), "/aoc_prefix.rs"));
+aoc::main!();
 
 fn parse_line(line: &str) -> [i64; 3] {
     line.split('x')

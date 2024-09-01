@@ -1,4 +1,4 @@
-include!(concat!(env!("OUT_DIR"), "/aoc_prefix.rs"));
+aoc::main!();
 
 fn mine(input: &str, prefix: &str) -> u64 {
     let mut salt = 0;

@@ -1,6 +1,6 @@
 use std::{iter::Map, str::Chars};
 
-include!(concat!(env!("OUT_DIR"), "/aoc_prefix.rs"));
+aoc::main!();
 
 fn parse_input(input: &str) -> Map<Chars, impl FnMut(char) -> i32> {
     input.chars().map(|c| match c {
