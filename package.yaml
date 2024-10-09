@@ -13,6 +13,9 @@ library:
     - base
     - containers
     - megaparsec
+    - bytestring
+    - utf8-string
+    - cryptohash-md5
 
 executables:
   aoc:

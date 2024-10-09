@@ -48,7 +48,7 @@
         },
         "fourmolu": {
             "config": {
-                "external": false,
+                "external": true,
                 "path": "fourmolu"
             }
         },
