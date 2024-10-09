@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.29)
 project(aoc)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(CTest)
 
-add_executable(main main.cpp)
-
-add_executable(main_test main.t.cpp)
-add_test(main_test main_test)
+add_subdirectory(aoc)
