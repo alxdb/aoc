@@ -1,3 +1,4 @@
-auto main() -> int {
+#include <text.hpp>
 
+auto main() -> int {
 }
