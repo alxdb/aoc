@@ -5,4 +5,4 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(CTest)
 
-add_subdirectory(aoc)
+add_subdirectory(src)

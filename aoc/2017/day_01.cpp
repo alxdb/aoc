@@ -1,14 +1,20 @@
+#include <algorithm>
 #include <expected>
+#include <iomanip>
 #include <iostream>
-#include <optional>
+#include <ranges>
 
-auto solution(std::istream &is)
-    -> std::expected<int, std::remove_reference_t<decltype(is)>::int_type> {
-  std::optional<int> prev;
-  std::optional<int> first;
-  while (is.good()) {
-    auto next = is.get();
-  }
+auto lines(std::istream &in) {
+  return std::ranges::subrange{std::istreambuf_iterator<char>{in},
+                               std::istreambuf_iterator<char>{}}
+         | std::views::lazy_split('\n')
+         | std::views::filter([](auto r) { return (r.begin() == r.end()); });
 }
 
-auto main() -> int {}
+auto main() -> int {
+  for (auto line : lines(std::cin)) {
+    std::string input;
+    std::ranges::copy(line, std::back_inserter(input));
+    std::cout << "line input: " << std::quoted(input) << '\n';
+  }
+}
