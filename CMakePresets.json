@@ -4,6 +4,7 @@
         {
             "name": "default",
             "binaryDir": "${sourceDir}/bin",
+            "generator": "Ninja",
             "cacheVariables": {
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true
             }

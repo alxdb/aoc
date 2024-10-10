@@ -15,10 +15,12 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
-        devShell = pkgs.mkShell {
-          buildInputs = with pkgs; [
+        devShell = pkgs.mkShell.override { stdenv = pkgs.llvmPackages_19.libcxxStdenv; } {
+          nativeBuildInputs = with pkgs; [
             cmake
-            llvmPackages_19.clang-tools
+            ninja
+            gdb
+            (llvmPackages_19.clang-tools.override { enableLibcxx = true; })
           ];
         };
       }
