@@ -18,9 +18,11 @@ struct Cli {
 enum Commands {
     /// Run a solution
     RunSolution(AocId),
+    /// Test all solutions with previously determined answers
+    TestSolutions,
 }
 
-#[derive(Args, Debug, Clone, Copy)]
+#[derive(Args, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AocId {
     year: u32,
     day: u32,
@@ -48,7 +50,7 @@ fn main() -> anyhow::Result<()> {
             );
 
             let cached_answers = cache::get_answers(&aoc_id)?;
-            let yes_re = Regex::new("^(y|Y)$")?;
+            let yes_re = Regex::new(r"^(y|Y)$")?;
             for (i, (cached_answer, solution_answer)) in cached_answers
                 .into_iter()
                 .zip(solution_answers.into_iter())
@@ -76,6 +78,29 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         }
+        Commands::TestSolutions => {
+            let answers = cache::get_all_answers()?;
+            for (aoc_id, answers) in answers.iter() {
+                println!("Running solution: {aoc_id}");
+                let input_path = cache::get_input_path(aoc_id, &cli.aoc_token)?;
+                let solution_start = Instant::now();
+                let solution_answers = solution_runner::run_solution(aoc_id, &input_path)?;
+                let solution_elapsed = solution_start.elapsed();
+                println!("Solution executed in {:.2?}", solution_elapsed);
+                println!(
+                    "Solution result is: part1={} part2={}",
+                    solution_answers[0], solution_answers[1]
+                );
+                for (i, answer) in answers.iter().enumerate() {
+                    if let Some(answer) = answer {
+                        if *answer != solution_answers[i] {
+                            println!("Solution for part{} is incorrect!", i + 1);
+                            println!("Correct solution is: {}", answer);
+                        }
+                    }
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -83,6 +108,7 @@ fn main() -> anyhow::Result<()> {
 mod cache {
     use crate::AocId;
     use anyhow::anyhow;
+    use regex::Regex;
     use std::collections::HashMap;
     use std::fs::{self, OpenOptions};
     use std::io::{ErrorKind, Write};
@@ -92,6 +118,13 @@ mod cache {
         dirs::cache_dir()
             .ok_or(anyhow!("Cannot determine cache dir"))
             .map(|p| p.join("aoc"))
+    }
+
+    fn ignore_already_exists(e: std::io::Error) -> anyhow::Result<()> {
+        match e.kind() {
+            ErrorKind::AlreadyExists => Ok(()),
+            _ => Err(e.into()),
+        }
     }
 
     pub fn get_input_path(aoc_id: &AocId, aoc_token: &str) -> anyhow::Result<PathBuf> {
@@ -107,20 +140,14 @@ mod cache {
                 .send()?
                 .error_for_status()?
                 .bytes()?;
-            fs::create_dir_all(input_path.parent().unwrap()).or_else(|e| match e.kind() {
-                ErrorKind::AlreadyExists => Ok(()),
-                _ => Err(e),
-            })?;
+            fs::create_dir_all(input_path.parent().unwrap()).or_else(ignore_already_exists)?;
             match OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(&input_path)
             {
                 Ok(mut f) => f.write_all(&input)?,
-                Err(e) => match e.kind() {
-                    ErrorKind::AlreadyExists => (),
-                    _ => return Err(anyhow::Error::from(e)),
-                },
+                Err(e) => ignore_already_exists(e)?,
             }
         }
         Ok(input_path)
@@ -130,10 +157,7 @@ mod cache {
         let answer_path =
             cache_path()?.join(format!("answers_{:02}_{:02}", aoc_id.year, aoc_id.day));
         if !answer_path.try_exists()? {
-            fs::create_dir_all(&answer_path).or_else(|e| match e.kind() {
-                ErrorKind::AlreadyExists => Ok(()),
-                _ => Err(e),
-            })?;
+            fs::create_dir_all(&answer_path).or_else(ignore_already_exists)?;
         }
         Ok(answer_path)
     }
@@ -146,33 +170,52 @@ mod cache {
             .open(answer_path.join(format!("part_{}", part_num)))
         {
             Ok(mut f) => Ok(write!(f, "{}", answer)?),
-            Err(e) => match e.kind() {
-                ErrorKind::AlreadyExists => Ok(()),
-                _ => Err(e.into()),
-            },
+            Err(e) => ignore_already_exists(e),
         }
     }
 
+    fn read_answers(answer_path: &PathBuf) -> anyhow::Result<[Option<String>; 2]> {
+        let mut result = [None, None];
+        for entry in fs::read_dir(answer_path)? {
+            let entry = entry?;
+            if let Some(idx) = match entry.file_name() {
+                f if f == "part_1" => Some(0),
+                f if f == "part_2" => Some(1),
+                _ => None,
+            } {
+                result[idx] = Some(fs::read_to_string(entry.path())?);
+            }
+        }
+        Ok(result)
+    }
+
     pub fn get_answers(aoc_id: &AocId) -> anyhow::Result<[Option<String>; 2]> {
-        let answer_path = get_answer_path(aoc_id)?;
-        let answers = fs::read_dir(answer_path)?
-            .map(|r| {
-                r.map_err(anyhow::Error::from).and_then(|e| {
-                    Ok((
-                        e.path()
-                            .file_name()
-                            .ok_or(anyhow!("Cannot read filename in answers cache"))
-                            .and_then(|s| s.to_str().ok_or(anyhow!("Filepath is invalid utf-8")))
-                            .map(|s| s.to_owned())?,
-                        fs::read_to_string(e.path())?,
-                    ))
-                })
-            })
-            .collect::<anyhow::Result<HashMap<String, String>>>()?;
-        Ok([
-            answers.get("part_1").cloned(),
-            answers.get("part_2").cloned(),
-        ])
+        read_answers(&get_answer_path(aoc_id)?)
+    }
+
+    pub fn get_all_answers() -> anyhow::Result<HashMap<AocId, [Option<String>; 2]>> {
+        thread_local! {
+            static RE: Regex = Regex::new(r"^answers_(?<year>[0-9]{2})_(?<day>[0-9]{2})$").unwrap();
+        }
+
+        let mut answers = HashMap::new();
+        for entry in fs::read_dir(cache_path()?)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                if let Some(caps) = entry
+                    .file_name()
+                    .to_str()
+                    .and_then(|s| RE.with(|re| re.captures(s)))
+                {
+                    let aoc_id = AocId {
+                        year: caps["year"].parse()?,
+                        day: caps["day"].parse()?,
+                    };
+                    answers.insert(aoc_id, read_answers(&entry.path())?);
+                }
+            }
+        }
+        Ok(answers)
     }
 }
 
