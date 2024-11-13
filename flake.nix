@@ -31,6 +31,7 @@
                 "rustfmt"
               ])
               pkgs.pkg-config
+              pkgs.cargo-flamegraph
             ];
             buildInputs = [ pkgs.openssl ];
             LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}";
