@@ -1,5 +1,8 @@
 use std::error::Error;
 
+pub mod solutions;
+
+#[derive(Copy, Clone, Debug)]
 pub struct AocId {
     pub year: u16,
     pub day: u8,
@@ -16,7 +19,7 @@ pub fn fetch_input(aoc_id: AocId) -> Result<String, Box<dyn Error>> {
         std::fs::read_to_string(input_file)?
     } else {
         let url = format!(
-            "http://adventofcode.com/{}/day/{}/input",
+            "https://adventofcode.com/{}/day/{}/input",
             aoc_id.year, aoc_id.day,
         );
         let cookie = format!("session={}", std::env::var("AOC_TOKEN")?);
