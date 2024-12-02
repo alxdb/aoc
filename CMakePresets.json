@@ -6,6 +6,7 @@
             "binaryDir": "${sourceDir}/bin",
             "generator": "Ninja",
             "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "DEBUG",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true
             }
         }

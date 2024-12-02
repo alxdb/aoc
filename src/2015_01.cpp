@@ -1,10 +1,22 @@
 #include <text.hpp>
 
 #include <iostream>
-#include <ranges>
 
 auto main() -> int {
-  for (auto line : aoc::lines(std::cin)) {
-    std::cout << "line: " << (line | std::ranges::to<std::string>()) << '\n';
+  std::optional<char> p;
+  std::istreambuf_iterator<char> is{std::cin}, end;
+  while (true) {
+    char c = *is;
+    is++;
+    if (p) {
+      std::cout << *p;
+    }
+    if (is == end) {
+      if (c != '\n') {
+        std::cout << c;
+      }
+      break;
+    }
+    p = c;
   }
 }

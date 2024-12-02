@@ -6,12 +6,9 @@
 namespace aoc {
 
 inline auto lines(std::istream &in) {
-  return std::ranges::subrange{std::istreambuf_iterator<char>{in},
-                               std::istreambuf_iterator<char>{}}
-         | std::views::lazy_split('\n')
-         | std::views::filter([](auto r) {
-             return (r.begin() != r.end());
-           });
+  auto in_r = std::ranges::subrange{std::istreambuf_iterator<char>{in},
+                                    std::istreambuf_iterator<char>{}};
+  return in_r | std::views::lazy_split('\n');
 }
 
 } // namespace aoc
