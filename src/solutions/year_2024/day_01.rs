@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::{error::Error, str::FromStr};
 
 struct Input(Vec<u32>, Vec<u32>);
@@ -39,9 +40,25 @@ pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
     Ok(total_distance)
 }
 
+pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
+    let input = Input::from_str(input)?;
+
+    let mut occurrences = HashMap::new();
+    for num in input.1.into_iter() {
+        occurrences.entry(num).and_modify(|n| *n += 1).or_insert(1);
+    }
+
+    let mut similarity_score = 0;
+    for num in input.0.into_iter() {
+        similarity_score += num * occurrences.get(&num).unwrap_or(&0);
+    }
+
+    Ok(similarity_score)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::part1;
+    use super::{part1, part2};
     use crate::{fetch_input, AocId};
     use std::error::Error;
 
@@ -53,6 +70,17 @@ mod tests {
             part: 1,
         })?)?;
         assert_eq!(answer, 2264607);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2() -> Result<(), Box<dyn Error>> {
+        let answer = part2(&fetch_input(AocId {
+            year: 2024,
+            day: 1,
+            part: 2,
+        })?)?;
+        assert_eq!(answer, 19457120);
         Ok(())
     }
 }

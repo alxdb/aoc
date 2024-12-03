@@ -29,6 +29,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             day: 1,
             part: 1,
         } => solutions::year_2024::day_01::part1(&input)?,
+        AocId {
+            year: 2024,
+            day: 1,
+            part: 2,
+        } => solutions::year_2024::day_01::part2(&input)?,
         _ => todo!(),
     };
     println!("answer={}", answer);
