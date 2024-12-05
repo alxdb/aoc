@@ -73,7 +73,46 @@ pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
 }
 
 pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
-    todo!()
+    let grid = Grid::from_str(input)?;
+
+    let mut count = 0;
+    for (row_i, col_i, c) in grid.iter() {
+        if c == 'A' {
+            let a = match grid.get(row_i - 1, col_i - 1) {
+                Some(x) => x,
+                None => continue,
+            };
+            let b_is = match a {
+                'M' => 'S',
+                'S' => 'M',
+                _ => continue,
+            };
+            let b = match grid.get(row_i + 1, col_i + 1) {
+                Some(x) => x,
+                None => continue,
+            };
+            if b != b_is {
+                continue;
+            }
+            let a = match grid.get(row_i - 1, col_i + 1) {
+                Some(x) => x,
+                None => continue,
+            };
+            let b_is = match a {
+                'M' => 'S',
+                'S' => 'M',
+                _ => continue,
+            };
+            let b = match grid.get(row_i + 1, col_i - 1) {
+                Some(x) => x,
+                None => continue,
+            };
+            if b == b_is {
+                count += 1;
+            }
+        }
+    }
+    Ok(count)
 }
 
 #[cfg(test)]
@@ -82,9 +121,7 @@ mod tests {
     use crate::{fetch_input, AocId};
     use std::error::Error;
 
-    #[test]
-    fn test_part1_example() -> Result<(), Box<dyn Error>> {
-        const EXAMPLE_INPUT: &str = "MMMSXXMASM
+    const EXAMPLE_INPUT: &str = "MMMSXXMASM
 MSAMXMSMSA
 AMXSXMAAMM
 MSAMASMSMX
@@ -94,6 +131,9 @@ SMSMSASXSS
 SAXAMASAAA
 MAMMMXMMMM
 MXMXAXMASX";
+
+    #[test]
+    fn test_part1_example() -> Result<(), Box<dyn Error>> {
         assert_eq!(part1(EXAMPLE_INPUT)?, 18);
         Ok(())
     }
@@ -107,6 +147,25 @@ MXMXAXMASX";
                 part: 1
             })?)?,
             2633
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2_example() -> Result<(), Box<dyn Error>> {
+        assert_eq!(part2(EXAMPLE_INPUT)?, 9);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2() -> Result<(), Box<dyn Error>> {
+        assert_eq!(
+            part2(&fetch_input(AocId {
+                year: 2024,
+                day: 4,
+                part: 2
+            })?)?,
+            1936
         );
         Ok(())
     }
