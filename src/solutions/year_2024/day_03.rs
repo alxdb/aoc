@@ -35,7 +35,26 @@ pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
 }
 
 pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
-    todo!()
+    let mut total = 0;
+    let mut start = 0;
+    loop {
+        let end = input[start..]
+            .find("don't()")
+            .map(|end| start + end)
+            .unwrap_or(input.len());
+        total += part1(&input[start..end])?;
+        if end == input.len() {
+            break;
+        } else if let Some(new_start) = input[end..].find("do()") {
+            start = end + new_start;
+            if start >= input.len() {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    Ok(total)
 }
 
 #[cfg(test)]
@@ -69,22 +88,22 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn test_part2_example() -> Result<(), Box<dyn Error>> {
-    //     todo!();
-    //     // assert_eq!(part2(EXAMPLE_INPUT)?, 4);
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn test_part2() -> Result<(), Box<dyn Error>> {
-    //     todo!();
-    //     let input = &fetch_input(AocId {
-    //         year: 2024,
-    //         day: 3,
-    //         part: 2,
-    //     })?;
-    //     assert_eq!(part2(input)?, 324);
-    //     Ok(())
-    // }
+    #[test]
+    fn test_part2_example() -> Result<(), Box<dyn Error>> {
+        const EXAMPLE_INPUT: &str =
+            "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))";
+        assert_eq!(part2(EXAMPLE_INPUT)?, 48);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2() -> Result<(), Box<dyn Error>> {
+        let input = &fetch_input(AocId {
+            year: 2024,
+            day: 3,
+            part: 2,
+        })?;
+        assert_eq!(part2(input)?, 63866497);
+        Ok(())
+    }
 }
