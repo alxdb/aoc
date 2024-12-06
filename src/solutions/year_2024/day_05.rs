@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::str::FromStr;
@@ -37,26 +38,31 @@ impl FromStr for Input {
     }
 }
 
+fn is_correctly_sorted(update: &[u32], pages_before_page: &HashMap<u32, HashSet<u32>>) -> bool {
+    !update.iter().enumerate().any(|(i, page)| {
+        update.iter().skip(i + 1).any(|page_after| {
+            pages_before_page
+                .get(page)
+                .map_or(false, |pages_before| pages_before.contains(page_after))
+        })
+    })
+}
+
 pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
     let input = Input::from_str(input)?;
 
-    let mut pages_after_page: HashMap<u32, HashSet<u32>> = HashMap::new();
+    let mut pages_before_page: HashMap<u32, HashSet<u32>> = HashMap::new();
     for rule in input.ordering_rules {
-        pages_after_page.entry(rule[0]).or_default().insert(rule[1]);
+        pages_before_page
+            .entry(rule[1])
+            .or_default()
+            .insert(rule[0]);
     }
 
     let result = input
         .updates
         .iter()
-        .filter(|update| {
-            !update.iter().enumerate().any(|(i, page)| {
-                update.iter().take(i).any(|page_before| {
-                    pages_after_page
-                        .get(page)
-                        .map_or(false, |pages_after| pages_after.contains(page_before))
-                })
-            })
-        })
+        .filter(|update| is_correctly_sorted(update, &pages_before_page))
         .map(|valid_update| valid_update[valid_update.len() / 2])
         .sum();
 
@@ -64,7 +70,55 @@ pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
 }
 
 pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
-    todo!()
+    let input = Input::from_str(input)?;
+
+    let mut pages_before_page: HashMap<u32, HashSet<u32>> = HashMap::new();
+    for rule in &input.ordering_rules {
+        pages_before_page
+            .entry(rule[1])
+            .or_default()
+            .insert(rule[0]);
+    }
+    let mut pages_after_page: HashMap<u32, HashSet<u32>> = HashMap::new();
+    for rule in &input.ordering_rules {
+        pages_after_page.entry(rule[0]).or_default().insert(rule[1]);
+    }
+
+    let result = input
+        .updates
+        .iter()
+        .filter(|update| !is_correctly_sorted(update, &pages_before_page))
+        .map(|invalid_update| {
+            let mut valid_update = invalid_update.clone();
+            valid_update.sort_by(|a, b| {
+                let is_before = pages_before_page
+                    .get(a)
+                    .map(|pages_before| pages_before.contains(b))
+                    .and_then(|is_before| {
+                        if is_before {
+                            Some(Ordering::Less)
+                        } else {
+                            None
+                        }
+                    });
+                let is_after = pages_after_page
+                    .get(a)
+                    .map(|pages_after| pages_after.contains(b))
+                    .and_then(|is_before| {
+                        if is_before {
+                            Some(Ordering::Greater)
+                        } else {
+                            None
+                        }
+                    });
+                is_before.or(is_after).unwrap_or(Ordering::Equal)
+            });
+            valid_update
+        })
+        .map(|valid_update| valid_update[valid_update.len() / 2])
+        .sum();
+
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -121,22 +175,22 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn test_part2_example() -> Result<(), Box<dyn Error>> {
-    //     assert_eq!(part2(EXAMPLE_INPUT)?, 0);
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn test_part2() -> Result<(), Box<dyn Error>> {
-    //     assert_eq!(
-    //         part2(&fetch_input(AocId {
-    //             year: 2024,
-    //             day: 5,
-    //             part: 2
-    //         })?)?,
-    //         0
-    //     );
-    //     Ok(())
-    // }
+    #[test]
+    fn test_part2_example() -> Result<(), Box<dyn Error>> {
+        assert_eq!(part2(EXAMPLE_INPUT)?, 123);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2() -> Result<(), Box<dyn Error>> {
+        assert_eq!(
+            part2(&fetch_input(AocId {
+                year: 2024,
+                day: 5,
+                part: 2
+            })?)?,
+            5285
+        );
+        Ok(())
+    }
 }
