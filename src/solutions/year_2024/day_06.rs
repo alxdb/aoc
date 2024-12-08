@@ -210,8 +210,6 @@ pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
     }
     let tiles_visited = map.path.keys().count();
 
-    println!("{}", Into::<String>::into(&map));
-
     Ok(tiles_visited as u32)
 }
 
@@ -222,30 +220,16 @@ pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
 
     let mut looping_obstructions = 0;
     loop {
-        // println!("Main path");
-        // println!("{}", Into::<String>::into(&map));
-        // println!("{:?}", map.path);
-        // println!();
         let mut alt_map = map.clone();
-        if alt_map.guard.facing() != guard_staring_coord
+        if !alt_map.obstacles.contains(&alt_map.guard.facing())
             && !alt_map.path.contains_key(&alt_map.guard.facing())
+            && alt_map.guard.facing() != guard_staring_coord
         {
             alt_map.obstacles.insert(alt_map.guard.facing());
-            // println!("Trying");
-            // println!("{}", Into::<String>::into(&alt_map));
-            // println!("{:?}", alt_map.path);
-            // println!();
             loop {
                 if let Some(loops) = alt_map.step_guard() {
                     if loops {
-                        // println!("Loop");
-                        // println!("{}", Into::<String>::into(&alt_map));
-                        // println!("{:?}", alt_map.path);
-                        // println!();
                         looping_obstructions += 1;
-                    } else {
-                        // println!("Doesn't loop");
-                        // println!();
                     }
                     break;
                 }
