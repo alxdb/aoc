@@ -55,12 +55,7 @@ impl Coord {
     }
 }
 
-// #[derive(Clone)]
-// enum Tile {
-//     Obstacle,
-//     Path(HashSet<Dir>),
-// }
-
+#[derive(Clone)]
 struct Guard {
     coord: Coord,
     dir: Dir,
@@ -76,6 +71,7 @@ impl Guard {
     }
 }
 
+#[derive(Clone)]
 struct Map {
     obstacles: HashSet<Coord>,
     path: HashMap<Coord, HashSet<Dir>>,
@@ -132,13 +128,20 @@ impl TryFrom<&str> for Map {
     }
 }
 
-impl From<Map> for String {
-    fn from(map: Map) -> Self {
+impl From<&Map> for String {
+    fn from(map: &Map) -> Self {
         let mut result = String::new();
         for row in 0..map.max_row {
             for col in 0..map.max_col {
                 let coord = Coord { row, col };
-                if map.obstacles.get(&coord).is_some() {
+                if coord == map.guard.coord {
+                    match map.guard.dir {
+                        Dir::N => result.push('^'),
+                        Dir::E => result.push('>'),
+                        Dir::S => result.push('v'),
+                        Dir::W => result.push('<'),
+                    }
+                } else if map.obstacles.contains(&coord) {
                     result.push('#');
                 } else if let Some(dirs) = map.path.get(&coord) {
                     if dirs.is_subset(&HashSet::from([Dir::N, Dir::S])) {
@@ -152,7 +155,9 @@ impl From<Map> for String {
                     result.push('.');
                 }
             }
-            result.push('\n');
+            if row != map.max_row - 1 {
+                result.push('\n');
+            }
         }
         result
     }
@@ -197,7 +202,7 @@ pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
     loop {
         if let Some(loops) = map.step_guard() {
             if loops {
-                panic!("part 1 loops")
+                panic!("original path loops")
             } else {
                 break;
             }
@@ -205,13 +210,58 @@ pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
     }
     let tiles_visited = map.path.keys().count();
 
-    println!("{}", Into::<String>::into(map));
+    println!("{}", Into::<String>::into(&map));
 
     Ok(tiles_visited as u32)
 }
 
+// too high
 pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
-    todo!()
+    let mut map = Map::try_from(input)?;
+    let guard_staring_coord = map.guard.coord;
+
+    let mut looping_obstructions = 0;
+    loop {
+        // println!("Main path");
+        // println!("{}", Into::<String>::into(&map));
+        // println!("{:?}", map.path);
+        // println!();
+        let mut alt_map = map.clone();
+        if alt_map.guard.facing() != guard_staring_coord
+            && !alt_map.path.contains_key(&alt_map.guard.facing())
+        {
+            alt_map.obstacles.insert(alt_map.guard.facing());
+            // println!("Trying");
+            // println!("{}", Into::<String>::into(&alt_map));
+            // println!("{:?}", alt_map.path);
+            // println!();
+            loop {
+                if let Some(loops) = alt_map.step_guard() {
+                    if loops {
+                        // println!("Loop");
+                        // println!("{}", Into::<String>::into(&alt_map));
+                        // println!("{:?}", alt_map.path);
+                        // println!();
+                        looping_obstructions += 1;
+                    } else {
+                        // println!("Doesn't loop");
+                        // println!();
+                    }
+                    break;
+                }
+            }
+        }
+
+        if let Some(loops) = map.step_guard() {
+            if loops {
+                panic!("original path loops")
+            } else {
+                break;
+            }
+        }
+    }
+
+    Ok(looping_obstructions)
 }
 
 #[cfg(test)]
@@ -230,6 +280,10 @@ mod tests {
 ........#.
 #.........
 ......#...";
+
+    const EXAMPLE_INPUT_2: &str = "###
+..#
+^##";
 
     #[test]
     fn test_part1_example() -> Result<(), Box<dyn Error>> {
@@ -250,22 +304,28 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn test_part2_example() -> Result<(), Box<dyn Error>> {
-    //     assert_eq!(part2(EXAMPLE_INPUT)?, 123);
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn test_part2() -> Result<(), Box<dyn Error>> {
-    //     assert_eq!(
-    //         part2(&fetch_input(AocId {
-    //             year: 2024,
-    //             day: 6,
-    //             part: 2
-    //         })?)?,
-    //         5285
-    //     );
-    //     Ok(())
-    // }
+    #[test]
+    fn test_part2_example() -> Result<(), Box<dyn Error>> {
+        assert_eq!(part2(EXAMPLE_INPUT)?, 6);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2_example_2() -> Result<(), Box<dyn Error>> {
+        assert_eq!(part2(EXAMPLE_INPUT_2)?, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2() -> Result<(), Box<dyn Error>> {
+        assert_eq!(
+            part2(&fetch_input(AocId {
+                year: 2024,
+                day: 6,
+                part: 2
+            })?)?,
+            2188
+        );
+        Ok(())
+    }
 }
