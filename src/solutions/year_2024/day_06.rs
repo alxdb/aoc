@@ -1,172 +1,267 @@
-use std::{collections::HashSet, error::Error};
+use std::{
+    collections::{HashMap, HashSet},
+    error::Error,
+};
 
-#[derive(Debug)]
-enum InvalidInput {
-    InvalidChar(char),
-    EmptyInput,
-    UnequalLineLength,
-    MultipleGuards,
-}
-
-impl std::fmt::Display for InvalidInput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InvalidInput::InvalidChar(c) => write!(f, "invalid char '{}'", c),
-            InvalidInput::EmptyInput => write!(f, "input is empty"),
-            InvalidInput::UnequalLineLength => write!(f, "input lines of differing length"),
-            InvalidInput::MultipleGuards => write!(f, "multiple guards in input"),
-        }
-    }
-}
-
-impl Error for InvalidInput {}
-
-enum Direction {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Dir {
     N,
     E,
     S,
     W,
 }
 
-impl TryFrom<char> for Direction {
-    type Error = InvalidInput;
-
-    fn try_from(value: char) -> Result<Self, Self::Error> {
-        match value {
-            '^' => Ok(Direction::N),
-            '>' => Ok(Direction::E),
-            'v' => Ok(Direction::S),
-            '<' => Ok(Direction::W),
-            _ => Err(InvalidInput::InvalidChar(value)),
+impl Dir {
+    fn cw(&self) -> Dir {
+        match self {
+            Dir::N => Dir::E,
+            Dir::E => Dir::S,
+            Dir::S => Dir::W,
+            Dir::W => Dir::N,
         }
     }
 }
 
-enum Tile {
-    Obstruction,
-    Empty { visited: bool },
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+struct Coord {
+    row: i32,
+    col: i32,
 }
 
-struct Grid {
-    tiles: Vec<Tile>,
-    n_cols: usize,
-    n_rows: usize,
-    guard_coords: [usize; 2],
-    guard_direction: Direction,
+impl Coord {
+    fn add(&self, dir: Dir) -> Coord {
+        match dir {
+            Dir::N => Coord {
+                row: self.row - 1,
+                col: self.col,
+            },
+            Dir::E => Coord {
+                row: self.row,
+                col: self.col + 1,
+            },
+            Dir::S => Coord {
+                row: self.row + 1,
+                col: self.col,
+            },
+            Dir::W => Coord {
+                row: self.row,
+                col: self.col - 1,
+            },
+        }
+    }
+
+    fn in_bounds(&self, max_row: i32, max_col: i32) -> bool {
+        self.row >= 0 && self.row < max_row && self.col >= 0 && self.col < max_col
+    }
 }
 
-impl TryFrom<&str> for Grid {
-    type Error = InvalidInput;
+#[derive(Clone)]
+struct Guard {
+    coord: Coord,
+    dir: Dir,
+}
+
+impl Guard {
+    fn turn(&mut self) {
+        self.dir = self.dir.cw();
+    }
+
+    fn facing(&self) -> Coord {
+        self.coord.add(self.dir)
+    }
+}
+
+#[derive(Clone)]
+struct Map {
+    obstacles: HashSet<Coord>,
+    path: HashMap<Coord, HashSet<Dir>>,
+    max_row: i32,
+    max_col: i32,
+    guard: Guard,
+}
+
+impl TryFrom<&str> for Map {
+    type Error = &'static str;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value.is_empty() {
-            return Err(InvalidInput::EmptyInput);
-        }
+        let mut obstacles = HashSet::new();
+        let mut path = HashMap::new();
+        let mut guard = None;
+        let max_row = value.lines().count() as i32;
+        let max_col = value.lines().next().unwrap().len() as i32;
 
-        let mut tiles: Vec<Tile> = Vec::new();
-        let mut n_cols: Option<usize> = None;
-        let mut guard_index: Option<[usize; 2]> = None;
-        let mut guard_direction: Option<Direction> = None;
-
-        for (row_n, line) in value.lines().enumerate() {
-            if let Some(n_cols) = n_cols {
-                if line.len() != n_cols {
-                    return Err(InvalidInput::UnequalLineLength);
-                }
-            } else {
-                if line.is_empty() {
-                    return Err(InvalidInput::EmptyInput);
-                }
-                n_cols = Some(line.len())
-            }
-            for (col_n, c) in line.char_indices() {
-                match c {
-                    '.' => tiles.push(Tile::Empty { visited: false }),
-                    '#' => tiles.push(Tile::Obstruction),
-                    _ => {
-                        match guard_direction {
-                            None => guard_direction = Some(Direction::try_from(c)?),
-                            Some(_) => return Err(InvalidInput::MultipleGuards),
-                        };
-                        guard_index = Some([row_n, col_n]);
-                        tiles.push(Tile::Empty { visited: true });
+        for (row, line) in value.lines().enumerate() {
+            for (col, char) in line.char_indices() {
+                let coord = Coord {
+                    row: row as i32,
+                    col: col as i32,
+                };
+                let guard_dir = match char {
+                    '.' => None,
+                    '#' => {
+                        obstacles.insert(coord);
+                        None
+                    }
+                    '^' => Some(Dir::N),
+                    '>' => Some(Dir::E),
+                    'v' => Some(Dir::S),
+                    '<' => Some(Dir::W),
+                    _ => return Err("invalid char"),
+                };
+                if let Some(dir) = guard_dir {
+                    if guard.is_none() {
+                        guard = Some(Guard { coord, dir });
+                        path.insert(coord, HashSet::from([dir]));
+                    } else {
+                        return Err("Multiple guards");
                     }
                 }
             }
         }
-
-        let n_rows = tiles.len() / n_cols.unwrap();
-        Ok(Grid {
-            tiles,
-            n_cols: n_cols.unwrap(),
-            n_rows,
-            guard_coords: guard_index.unwrap(),
-            guard_direction: guard_direction.unwrap(),
+        guard.ok_or("No guard found").map(|guard| Map {
+            obstacles,
+            path,
+            max_row,
+            max_col,
+            guard,
         })
     }
 }
 
-impl Grid {
-    fn at(&self, row: usize, col: usize) -> Option<&Tile> {
-        if col >= self.n_cols {
-            None
-        } else {
-            self.tiles.get(row * self.n_cols + col)
+impl From<&Map> for String {
+    fn from(map: &Map) -> Self {
+        let mut result = String::new();
+        for row in 0..map.max_row {
+            for col in 0..map.max_col {
+                let coord = Coord { row, col };
+                if coord == map.guard.coord {
+                    match map.guard.dir {
+                        Dir::N => result.push('^'),
+                        Dir::E => result.push('>'),
+                        Dir::S => result.push('v'),
+                        Dir::W => result.push('<'),
+                    }
+                } else if map.obstacles.contains(&coord) {
+                    result.push('#');
+                } else if let Some(dirs) = map.path.get(&coord) {
+                    if dirs.is_subset(&HashSet::from([Dir::N, Dir::S])) {
+                        result.push('|');
+                    } else if dirs.is_subset(&HashSet::from([Dir::E, Dir::W])) {
+                        result.push('-');
+                    } else {
+                        result.push('+');
+                    }
+                } else {
+                    result.push('.');
+                }
+            }
+            if row != map.max_row - 1 {
+                result.push('\n');
+            }
         }
+        result
     }
+}
 
-    fn at_mut(&mut self, row: usize, col: usize) -> Option<&mut Tile> {
-        if col >= self.n_cols {
-            None
+impl Map {
+    /// Returns whether or not the path will loop
+    /// Returns None if this is not yet known
+    fn step_guard(&mut self) -> Option<bool> {
+        if !self.guard.facing().in_bounds(self.max_row, self.max_col) {
+            Some(false)
+        } else if self.obstacles.contains(&self.guard.facing()) {
+            self.guard.turn();
+
+            let dirs = self.path.get_mut(&self.guard.coord).unwrap();
+            if dirs.contains(&self.guard.dir) {
+                Some(true)
+            } else {
+                dirs.insert(self.guard.dir);
+                None
+            }
+        } else if let Some(dirs) = self.path.get_mut(&self.guard.facing()) {
+            if dirs.contains(&self.guard.dir) {
+                Some(true)
+            } else {
+                dirs.insert(self.guard.dir);
+                self.guard.coord = self.guard.facing();
+                None
+            }
         } else {
-            self.tiles.get_mut(row * self.n_cols + col)
-        }
-    }
-
-    fn guard_is_facing(&mut self) -> Option<(&mut Tile, [usize; 2])> {
-        let facing_coords = match self.guard_direction {
-            Direction::N => [self.guard_coords[0] - 1, self.guard_coords[1]],
-            Direction::E => [self.guard_coords[0], self.guard_coords[1] + 1],
-            Direction::S => [self.guard_coords[0] + 1, self.guard_coords[1]],
-            Direction::W => [self.guard_coords[0], self.guard_coords[1] - 1],
-        };
-        self.at_mut(facing_coords[0], facing_coords[1])
-            .map(|t| (t, facing_coords))
-    }
-
-    fn turn_guard(&mut self) {
-        self.guard_direction = match self.guard_direction {
-            Direction::N => Direction::E,
-            Direction::E => Direction::S,
-            Direction::S => Direction::W,
-            Direction::W => Direction::N,
+            self.path
+                .insert(self.guard.facing(), HashSet::from([self.guard.dir]));
+            self.guard.coord = self.guard.facing();
+            None
         }
     }
 }
 
 pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
-    let mut grid = Grid::try_from(input)?;
+    let mut map = Map::try_from(input)?;
 
-    while let Some((tile, coords)) = grid.guard_is_facing() {
-        match tile {
-            Tile::Empty { visited } => {
-                *visited = true;
-                grid.guard_coords = coords;
+    loop {
+        if let Some(loops) = map.step_guard() {
+            if loops {
+                panic!("original path loops")
+            } else {
+                break;
             }
-            Tile::Obstruction => grid.turn_guard(),
+        }
+    }
+    let tiles_visited = map.path.keys().count();
+
+    println!("{}", Into::<String>::into(&map));
+
+    Ok(tiles_visited as u32)
+}
+
+// too high
+pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
+    let mut map = Map::try_from(input)?;
+    let guard_staring_coord = map.guard.coord;
+
+    let mut looping_obstructions = 0;
+    loop {
+        // println!("Main path");
+        // println!("{}", Into::<String>::into(&map));
+        // println!("{:?}", map.path);
+        // println!();
+        let mut alt_map = map.clone();
+        if alt_map.guard.facing() != guard_staring_coord
+            && !alt_map.path.contains_key(&alt_map.guard.facing())
+        {
+            alt_map.obstacles.insert(alt_map.guard.facing());
+            // println!("Trying");
+            // println!("{}", Into::<String>::into(&alt_map));
+            // println!("{:?}", alt_map.path);
+            // println!();
+            loop {
+                if let Some(loops) = alt_map.step_guard() {
+                    if loops {
+                        // println!("Loop");
+                        // println!("{}", Into::<String>::into(&alt_map));
+                        // println!("{:?}", alt_map.path);
+                        // println!();
+                        looping_obstructions += 1;
+                    } else {
+                        // println!("Doesn't loop");
+                        // println!();
+                    }
+                    break;
+                }
+            }
+        }
+
+        if let Some(loops) = map.step_guard() {
+            if loops {
+                panic!("original path loops")
+            } else {
+                break;
+            }
         }
     }
 
-    Ok(grid
-        .tiles
-        .into_iter()
-        .filter(|t| matches!(t, Tile::Empty { visited: true }))
-        .count()
-        .try_into()?)
-}
-
-pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
-    todo!()
+    Ok(looping_obstructions)
 }
 
 #[cfg(test)]
@@ -185,6 +280,10 @@ mod tests {
 ........#.
 #.........
 ......#...";
+
+    const EXAMPLE_INPUT_2: &str = "###
+..#
+^##";
 
     #[test]
     fn test_part1_example() -> Result<(), Box<dyn Error>> {
@@ -205,22 +304,28 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn test_part2_example() -> Result<(), Box<dyn Error>> {
-    //     assert_eq!(part2(EXAMPLE_INPUT)?, 123);
-    //     Ok(())
-    // }
-    //
-    // #[test]
-    // fn test_part2() -> Result<(), Box<dyn Error>> {
-    //     assert_eq!(
-    //         part2(&fetch_input(AocId {
-    //             year: 2024,
-    //             day: 6,
-    //             part: 2
-    //         })?)?,
-    //         5285
-    //     );
-    //     Ok(())
-    // }
+    #[test]
+    fn test_part2_example() -> Result<(), Box<dyn Error>> {
+        assert_eq!(part2(EXAMPLE_INPUT)?, 6);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2_example_2() -> Result<(), Box<dyn Error>> {
+        assert_eq!(part2(EXAMPLE_INPUT_2)?, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part2() -> Result<(), Box<dyn Error>> {
+        assert_eq!(
+            part2(&fetch_input(AocId {
+                year: 2024,
+                day: 6,
+                part: 2
+            })?)?,
+            2188
+        );
+        Ok(())
+    }
 }
