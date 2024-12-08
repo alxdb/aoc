@@ -55,12 +55,11 @@ impl Coord {
     }
 }
 
-#[derive(Clone)]
-enum Tile {
-    Obstacle,
-    Empty,
-    Path(HashSet<Dir>),
-}
+// #[derive(Clone)]
+// enum Tile {
+//     Obstacle,
+//     Path(HashSet<Dir>),
+// }
 
 struct Guard {
     coord: Coord,
@@ -78,7 +77,8 @@ impl Guard {
 }
 
 struct Map {
-    grid: HashMap<Coord, Tile>,
+    obstacles: HashSet<Coord>,
+    path: HashMap<Coord, HashSet<Dir>>,
     max_row: i32,
     max_col: i32,
     guard: Guard,
@@ -88,7 +88,8 @@ impl TryFrom<&str> for Map {
     type Error = &'static str;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut grid = HashMap::new();
+        let mut obstacles = HashSet::new();
+        let mut path = HashMap::new();
         let mut guard = None;
         let max_row = value.lines().count() as i32;
         let max_col = value.lines().next().unwrap().len() as i32;
@@ -102,7 +103,7 @@ impl TryFrom<&str> for Map {
                 let guard_dir = match char {
                     '.' => None,
                     '#' => {
-                        grid.insert(coord, Tile::Obstacle);
+                        obstacles.insert(coord);
                         None
                     }
                     '^' => Some(Dir::N),
@@ -114,7 +115,7 @@ impl TryFrom<&str> for Map {
                 if let Some(dir) = guard_dir {
                     if guard.is_none() {
                         guard = Some(Guard { coord, dir });
-                        grid.insert(coord, Tile::Path(HashSet::from([dir])));
+                        path.insert(coord, HashSet::from([dir]));
                     } else {
                         return Err("Multiple guards");
                     }
@@ -122,7 +123,8 @@ impl TryFrom<&str> for Map {
             }
         }
         guard.ok_or("No guard found").map(|guard| Map {
-            grid,
+            obstacles,
+            path,
             max_row,
             max_col,
             guard,
@@ -135,22 +137,19 @@ impl From<Map> for String {
         let mut result = String::new();
         for row in 0..map.max_row {
             for col in 0..map.max_col {
-                match map.get_tile(Coord { row, col }) {
-                    Some(Tile::Obstacle) => result.push('#'),
-                    Some(Tile::Empty) => result.push('.'),
-                    Some(Tile::Path(dirs)) => {
-                        if dirs.is_subset(&HashSet::from([Dir::N, Dir::S])) {
-                            result.push('|');
-                        } else if dirs.is_subset(&HashSet::from([Dir::E, Dir::W])) {
-                            result.push('-');
-                        } else {
-                            result.push('+');
-                        }
-                        // [Dir::N] | [Dir::S] | [Dir::N, Dir::S] => result.push('|'),
-                        // [Dir::E] | [Dir::W] | [Dir::E, Dir::W] => result.push('-'),
-                        // _ => result.push('+'),
+                let coord = Coord { row, col };
+                if map.obstacles.get(&coord).is_some() {
+                    result.push('#');
+                } else if let Some(dirs) = map.path.get(&coord) {
+                    if dirs.is_subset(&HashSet::from([Dir::N, Dir::S])) {
+                        result.push('|');
+                    } else if dirs.is_subset(&HashSet::from([Dir::E, Dir::W])) {
+                        result.push('-');
+                    } else {
+                        result.push('+');
                     }
-                    None => unreachable!(),
+                } else {
+                    result.push('.');
                 }
             }
             result.push('\n');
@@ -160,63 +159,34 @@ impl From<Map> for String {
 }
 
 impl Map {
-    fn get_tile(&self, coord: Coord) -> Option<Tile> {
-        if let Some(tile) = self.grid.get(&coord) {
-            Some(tile.clone())
-        } else if !coord.in_bounds(self.max_row, self.max_col) {
-            None
-        } else {
-            Some(Tile::Empty)
-        }
-    }
-
-    fn turn_guard(&mut self) {
-        self.guard.turn();
-        match self.grid.get_mut(&self.guard.coord).unwrap() {
-            Tile::Path(dirs) => dirs.insert(self.guard.dir),
-            _ => unreachable!(),
-        };
-    }
-
-    /// Return None if termination is uncertain
-    /// Return Some(false) if path terminates
-    /// Return Some(true) if path loops
+    /// Returns whether or not the path will loop
+    /// Returns None if this is not yet known
     fn step_guard(&mut self) -> Option<bool> {
-        let facing = self.guard.facing();
-        match self.get_tile(facing) {
-            None => Some(false),
-            Some(tile) => match tile {
-                Tile::Obstacle => {
-                    self.guard.turn();
-                    match self.grid.get_mut(&self.guard.coord).unwrap() {
-                        Tile::Path(dirs) => {
-                            if dirs.contains(&self.guard.dir) {
-                                return Some(true);
-                            } else {
-                                dirs.insert(self.guard.dir);
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
-                    None
-                }
-                Tile::Empty => {
-                    self.guard.coord = facing;
-                    self.grid
-                        .insert(facing, Tile::Path(HashSet::from([self.guard.dir])));
-                    None
-                }
-                Tile::Path(mut dirs) => {
-                    if dirs.contains(&self.guard.dir) {
-                        Some(true)
-                    } else {
-                        self.guard.coord = facing;
-                        dirs.insert(self.guard.dir);
-                        self.grid.insert(facing, Tile::Path(dirs));
-                        None
-                    }
-                }
-            },
+        if !self.guard.facing().in_bounds(self.max_row, self.max_col) {
+            Some(false)
+        } else if self.obstacles.contains(&self.guard.facing()) {
+            self.guard.turn();
+
+            let dirs = self.path.get_mut(&self.guard.coord).unwrap();
+            if dirs.contains(&self.guard.dir) {
+                Some(true)
+            } else {
+                dirs.insert(self.guard.dir);
+                None
+            }
+        } else if let Some(dirs) = self.path.get_mut(&self.guard.facing()) {
+            if dirs.contains(&self.guard.dir) {
+                Some(true)
+            } else {
+                dirs.insert(self.guard.dir);
+                self.guard.coord = self.guard.facing();
+                None
+            }
+        } else {
+            self.path
+                .insert(self.guard.facing(), HashSet::from([self.guard.dir]));
+            self.guard.coord = self.guard.facing();
+            None
         }
     }
 }
@@ -224,33 +194,16 @@ impl Map {
 pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
     let mut map = Map::try_from(input)?;
 
-    while let Some(tile) = map.get_tile(map.guard.facing()) {
-        match tile {
-            Tile::Obstacle => {
-                map.guard.turn();
-                match map.grid.get_mut(&map.guard.coord).unwrap() {
-                    Tile::Path(dirs) => dirs.insert(map.guard.dir),
-                    _ => unreachable!(),
-                };
-            }
-            Tile::Empty => {
-                map.guard.coord = map.guard.facing();
-                map.grid
-                    .insert(map.guard.coord, Tile::Path(HashSet::from([map.guard.dir])));
-            }
-            Tile::Path(mut dirs) => {
-                map.guard.coord = map.guard.facing();
-                dirs.insert(map.guard.dir);
-                map.grid.insert(map.guard.coord, Tile::Path(dirs));
+    loop {
+        if let Some(loops) = map.step_guard() {
+            if loops {
+                panic!("part 1 loops")
+            } else {
+                break;
             }
         }
     }
-
-    let tiles_visited = map
-        .grid
-        .values()
-        .filter(|tile| matches!(tile, Tile::Path(_)))
-        .count();
+    let tiles_visited = map.path.keys().count();
 
     println!("{}", Into::<String>::into(map));
 
