@@ -1,267 +1,291 @@
-use std::{
-    collections::{HashMap, HashSet},
-    error::Error,
-};
+use std::error::Error;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum Dir {
+use bit_set::BitSet;
+
+#[derive(Clone, Copy)]
+enum Axis {
     N,
     E,
     S,
     W,
 }
 
-impl Dir {
-    fn cw(&self) -> Dir {
+impl Axis {
+    fn cw(&self) -> Axis {
         match self {
-            Dir::N => Dir::E,
-            Dir::E => Dir::S,
-            Dir::S => Dir::W,
-            Dir::W => Dir::N,
+            Axis::N => Axis::E,
+            Axis::E => Axis::S,
+            Axis::S => Axis::W,
+            Axis::W => Axis::N,
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-struct Coord {
-    row: i32,
-    col: i32,
-}
+impl TryFrom<&char> for Axis {
+    type Error = &'static str;
 
-impl Coord {
-    fn add(&self, dir: Dir) -> Coord {
-        match dir {
-            Dir::N => Coord {
-                row: self.row - 1,
-                col: self.col,
-            },
-            Dir::E => Coord {
-                row: self.row,
-                col: self.col + 1,
-            },
-            Dir::S => Coord {
-                row: self.row + 1,
-                col: self.col,
-            },
-            Dir::W => Coord {
-                row: self.row,
-                col: self.col - 1,
-            },
+    fn try_from(value: &char) -> Result<Self, Self::Error> {
+        match value {
+            '^' => Ok(Axis::N),
+            '>' => Ok(Axis::E),
+            'v' => Ok(Axis::S),
+            '<' => Ok(Axis::W),
+            _ => Err("invalid input"),
         }
-    }
-
-    fn in_bounds(&self, max_row: i32, max_col: i32) -> bool {
-        self.row >= 0 && self.row < max_row && self.col >= 0 && self.col < max_col
-    }
-}
-
-#[derive(Clone)]
-struct Guard {
-    coord: Coord,
-    dir: Dir,
-}
-
-impl Guard {
-    fn turn(&mut self) {
-        self.dir = self.dir.cw();
-    }
-
-    fn facing(&self) -> Coord {
-        self.coord.add(self.dir)
     }
 }
 
 #[derive(Clone)]
 struct Map {
-    obstacles: HashSet<Coord>,
-    path: HashMap<Coord, HashSet<Dir>>,
-    max_row: i32,
-    max_col: i32,
-    guard: Guard,
+    visited: [BitSet; 4],
+    obstacles: BitSet,
+    size: [usize; 2],
+    guard_coords: [usize; 2],
+    guard_axis: Axis,
 }
 
 impl TryFrom<&str> for Map {
     type Error = &'static str;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut obstacles = HashSet::new();
-        let mut path = HashMap::new();
-        let mut guard = None;
-        let max_row = value.lines().count() as i32;
-        let max_col = value.lines().next().unwrap().len() as i32;
+    fn try_from(value: &str) -> Result<Map, Self::Error> {
+        let contents: Vec<Vec<char>> = value
+            .lines()
+            .map(str::chars)
+            .map(Iterator::collect)
+            .collect();
 
-        for (row, line) in value.lines().enumerate() {
-            for (col, char) in line.char_indices() {
-                let coord = Coord {
-                    row: row as i32,
-                    col: col as i32,
-                };
-                let guard_dir = match char {
-                    '.' => None,
+        let size = [contents.len(), contents[0].len()];
+        let set_size = size[0] * size[1];
+        let mut visited = [
+            BitSet::with_capacity(set_size),
+            BitSet::with_capacity(set_size),
+            BitSet::with_capacity(set_size),
+            BitSet::with_capacity(set_size),
+        ];
+        let mut obstacles = BitSet::with_capacity(set_size);
+        let mut guard_coords = [usize::MAX, usize::MAX];
+        let mut guard_axis = Axis::N;
+
+        for (row, line) in contents.iter().enumerate() {
+            for (col, c) in line.iter().enumerate() {
+                let index = row * size[0] + col;
+                match c {
+                    '.' => continue,
                     '#' => {
-                        obstacles.insert(coord);
-                        None
+                        obstacles.insert(index);
                     }
-                    '^' => Some(Dir::N),
-                    '>' => Some(Dir::E),
-                    'v' => Some(Dir::S),
-                    '<' => Some(Dir::W),
-                    _ => return Err("invalid char"),
-                };
-                if let Some(dir) = guard_dir {
-                    if guard.is_none() {
-                        guard = Some(Guard { coord, dir });
-                        path.insert(coord, HashSet::from([dir]));
-                    } else {
-                        return Err("Multiple guards");
+                    _ => {
+                        guard_axis = c.try_into()?;
+                        guard_coords = [row, col];
+                        visited[guard_axis as usize].insert(index);
                     }
                 }
             }
         }
-        guard.ok_or("No guard found").map(|guard| Map {
+
+        Ok(Map {
+            visited,
             obstacles,
-            path,
-            max_row,
-            max_col,
-            guard,
+            size,
+            guard_coords,
+            guard_axis,
         })
     }
 }
 
-impl From<&Map> for String {
-    fn from(map: &Map) -> Self {
-        let mut result = String::new();
-        for row in 0..map.max_row {
-            for col in 0..map.max_col {
-                let coord = Coord { row, col };
-                if coord == map.guard.coord {
-                    match map.guard.dir {
-                        Dir::N => result.push('^'),
-                        Dir::E => result.push('>'),
-                        Dir::S => result.push('v'),
-                        Dir::W => result.push('<'),
+impl std::fmt::Display for Map {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in 0..self.size[0] {
+            for col in 0..self.size[1] {
+                let coord = [row, col];
+                let index = self.get_index(&coord);
+                if self.guard_coords == coord {
+                    match self.guard_axis {
+                        Axis::N => write!(f, "^")?,
+                        Axis::E => write!(f, ">")?,
+                        Axis::S => write!(f, "v")?,
+                        Axis::W => write!(f, "<")?,
                     }
-                } else if map.obstacles.contains(&coord) {
-                    result.push('#');
-                } else if let Some(dirs) = map.path.get(&coord) {
-                    if dirs.is_subset(&HashSet::from([Dir::N, Dir::S])) {
-                        result.push('|');
-                    } else if dirs.is_subset(&HashSet::from([Dir::E, Dir::W])) {
-                        result.push('-');
-                    } else {
-                        result.push('+');
-                    }
+                } else if self.obstacles.contains(index) {
+                    write!(f, "#")?;
                 } else {
-                    result.push('.');
+                    let mut axes = BitSet::with_capacity(4);
+                    if self.visited[Axis::N as usize].contains(index) {
+                        axes.insert(Axis::N as usize);
+                    }
+                    if self.visited[Axis::E as usize].contains(index) {
+                        axes.insert(Axis::E as usize);
+                    }
+                    if self.visited[Axis::S as usize].contains(index) {
+                        axes.insert(Axis::S as usize);
+                    }
+                    if self.visited[Axis::W as usize].contains(index) {
+                        axes.insert(Axis::W as usize);
+                    }
+                    if axes.is_empty() {
+                        write!(f, ".")?;
+                    } else if axes.is_subset(&BitSet::from_bytes(&[0b10100000])) {
+                        write!(f, "|")?;
+                    } else if axes.is_subset(&BitSet::from_bytes(&[0b01010000])) {
+                        write!(f, "-")?;
+                    } else {
+                        write!(f, "+")?;
+                    }
                 }
             }
-            if row != map.max_row - 1 {
-                result.push('\n');
+            if row < self.size[0] - 1 {
+                writeln!(f)?;
             }
         }
-        result
+        Ok(())
     }
 }
 
-impl Map {
-    /// Returns whether or not the path will loop
-    /// Returns None if this is not yet known
-    fn step_guard(&mut self) -> Option<bool> {
-        if !self.guard.facing().in_bounds(self.max_row, self.max_col) {
-            Some(false)
-        } else if self.obstacles.contains(&self.guard.facing()) {
-            self.guard.turn();
+#[derive(Clone, Copy, PartialEq)]
+enum End {
+    Loop,
+    Edge,
+}
 
-            let dirs = self.path.get_mut(&self.guard.coord).unwrap();
-            if dirs.contains(&self.guard.dir) {
-                Some(true)
-            } else {
-                dirs.insert(self.guard.dir);
-                None
+enum Hit {
+    Obstacle,
+    End(End),
+    Empty([usize; 2]),
+}
+
+impl Map {
+    fn get_index(&self, coords: &[usize; 2]) -> usize {
+        coords[0] * self.size[1] + coords[1]
+    }
+
+    fn move_by(&self, coords: &[usize; 2], axis: Axis) -> Option<[usize; 2]> {
+        match axis {
+            Axis::N => {
+                if coords[0] == 0 {
+                    None
+                } else {
+                    Some([coords[0] - 1, coords[1]])
+                }
             }
-        } else if let Some(dirs) = self.path.get_mut(&self.guard.facing()) {
-            if dirs.contains(&self.guard.dir) {
-                Some(true)
+            Axis::E => {
+                if coords[1] == (self.size[1] - 1) {
+                    None
+                } else {
+                    Some([coords[0], coords[1] + 1])
+                }
+            }
+            Axis::S => {
+                if coords[0] == (self.size[0] - 1) {
+                    None
+                } else {
+                    Some([coords[0] + 1, coords[1]])
+                }
+            }
+            Axis::W => {
+                if coords[1] == 0 {
+                    None
+                } else {
+                    Some([coords[0], coords[1] - 1])
+                }
+            }
+        }
+    }
+
+    fn guard_facing(&self) -> Hit {
+        if let Some(coords) = self.move_by(&self.guard_coords, self.guard_axis) {
+            let index = self.get_index(&coords);
+            if self.obstacles.contains(index) {
+                Hit::Obstacle
+            } else if self.visited[self.guard_axis as usize].contains(index) {
+                Hit::End(End::Loop)
             } else {
-                dirs.insert(self.guard.dir);
-                self.guard.coord = self.guard.facing();
-                None
+                Hit::Empty(coords)
             }
         } else {
-            self.path
-                .insert(self.guard.facing(), HashSet::from([self.guard.dir]));
-            self.guard.coord = self.guard.facing();
-            None
+            Hit::End(End::Edge)
         }
+    }
+
+    fn step_guard(&mut self, hit: &Hit) -> Option<End> {
+        match hit {
+            Hit::End(end) => Some(*end),
+            Hit::Obstacle => {
+                self.guard_axis = self.guard_axis.cw();
+                if !self.visited[self.guard_axis as usize]
+                    .insert(self.get_index(&self.guard_coords))
+                {
+                    Some(End::Loop)
+                } else {
+                    None
+                }
+            }
+            Hit::Empty(coords) => {
+                self.guard_coords = *coords;
+                self.visited[self.guard_axis as usize].insert(self.get_index(coords));
+                None
+            }
+        }
+    }
+
+    fn visited_any(&self, coord: &[usize; 2]) -> bool {
+        let index = self.get_index(coord);
+        for i in 0..=3 {
+            if self.visited[i].contains(index) {
+                return true;
+            }
+        }
+        false
     }
 }
 
 pub fn part1(input: &str) -> Result<u32, Box<dyn Error>> {
-    let mut map = Map::try_from(input)?;
-
+    let mut map: Map = input.try_into()?;
     loop {
-        if let Some(loops) = map.step_guard() {
-            if loops {
-                panic!("original path loops")
-            } else {
-                break;
+        if map.step_guard(&map.guard_facing()).is_some() {
+            break;
+        }
+    }
+    let mut visited = 0;
+    for row in 0..map.size[0] {
+        for col in 0..map.size[1] {
+            if map.visited_any(&[row, col]) {
+                visited += 1;
             }
         }
     }
-    let tiles_visited = map.path.keys().count();
-
-    println!("{}", Into::<String>::into(&map));
-
-    Ok(tiles_visited as u32)
+    Ok(visited)
 }
 
-// too high
 pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
-    let mut map = Map::try_from(input)?;
-    let guard_staring_coord = map.guard.coord;
-
-    let mut looping_obstructions = 0;
+    let mut map: Map = input.try_into()?;
+    let mut loops = 0;
     loop {
-        // println!("Main path");
-        // println!("{}", Into::<String>::into(&map));
-        // println!("{:?}", map.path);
-        // println!();
-        let mut alt_map = map.clone();
-        if alt_map.guard.facing() != guard_staring_coord
-            && !alt_map.path.contains_key(&alt_map.guard.facing())
-        {
-            alt_map.obstacles.insert(alt_map.guard.facing());
-            // println!("Trying");
-            // println!("{}", Into::<String>::into(&alt_map));
-            // println!("{:?}", alt_map.path);
-            // println!();
-            loop {
-                if let Some(loops) = alt_map.step_guard() {
-                    if loops {
-                        // println!("Loop");
-                        // println!("{}", Into::<String>::into(&alt_map));
-                        // println!("{:?}", alt_map.path);
-                        // println!();
-                        looping_obstructions += 1;
-                    } else {
-                        // println!("Doesn't loop");
-                        // println!();
+        let hit = map.guard_facing();
+        match hit {
+            Hit::End(_) => break,
+            Hit::Obstacle => (),
+            Hit::Empty(coord) => {
+                if !map.visited_any(&coord) {
+                    let mut alt_map = map.clone();
+                    alt_map.obstacles.insert(alt_map.get_index(&coord));
+                    loop {
+                        match alt_map.step_guard(&alt_map.guard_facing()) {
+                            Some(End::Loop) => {
+                                loops += 1;
+                                break;
+                            }
+                            Some(End::Edge) => {
+                                break;
+                            }
+                            _ => (),
+                        }
                     }
-                    break;
                 }
             }
         }
-
-        if let Some(loops) = map.step_guard() {
-            if loops {
-                panic!("original path loops")
-            } else {
-                break;
-            }
-        }
+        map.step_guard(&hit);
     }
-
-    Ok(looping_obstructions)
+    Ok(loops)
 }
 
 #[cfg(test)]
