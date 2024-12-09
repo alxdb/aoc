@@ -1,3 +1,4 @@
+use rpds::{HashTrieMap, HashTrieSet};
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
@@ -73,8 +74,8 @@ impl Guard {
 
 #[derive(Clone)]
 struct Map {
-    obstacles: HashSet<Coord>,
-    path: HashMap<Coord, HashSet<Dir>>,
+    obstacles: HashTrieSet<Coord>,
+    path: HashTrieMap<Coord, HashTrieSet<Dir>>,
     max_row: i32,
     max_col: i32,
     guard: Guard,
@@ -84,8 +85,8 @@ impl TryFrom<&str> for Map {
     type Error = &'static str;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut obstacles = HashSet::new();
-        let mut path = HashMap::new();
+        let mut obstacles = HashTrieSet::new();
+        let mut path = HashTrieMap::new();
         let mut guard = None;
         let max_row = value.lines().count() as i32;
         let max_col = value.lines().next().unwrap().len() as i32;
@@ -99,7 +100,7 @@ impl TryFrom<&str> for Map {
                 let guard_dir = match char {
                     '.' => None,
                     '#' => {
-                        obstacles.insert(coord);
+                        obstacles.insert_mut(coord);
                         None
                     }
                     '^' => Some(Dir::N),
@@ -111,7 +112,7 @@ impl TryFrom<&str> for Map {
                 if let Some(dir) = guard_dir {
                     if guard.is_none() {
                         guard = Some(Guard { coord, dir });
-                        path.insert(coord, HashSet::from([dir]));
+                        path.insert_mut(coord, HashTrieSet::new().insert(dir));
                     } else {
                         return Err("Multiple guards");
                     }
@@ -144,9 +145,9 @@ impl From<&Map> for String {
                 } else if map.obstacles.contains(&coord) {
                     result.push('#');
                 } else if let Some(dirs) = map.path.get(&coord) {
-                    if dirs.is_subset(&HashSet::from([Dir::N, Dir::S])) {
+                    if dirs.is_subset(&HashTrieSet::new().insert(Dir::N).insert(Dir::S)) {
                         result.push('|');
-                    } else if dirs.is_subset(&HashSet::from([Dir::E, Dir::W])) {
+                    } else if dirs.is_subset(&HashTrieSet::new().insert(Dir::E).insert(Dir::W)) {
                         result.push('-');
                     } else {
                         result.push('+');
@@ -176,20 +177,22 @@ impl Map {
             if dirs.contains(&self.guard.dir) {
                 Some(true)
             } else {
-                dirs.insert(self.guard.dir);
+                dirs.insert_mut(self.guard.dir);
                 None
             }
         } else if let Some(dirs) = self.path.get_mut(&self.guard.facing()) {
             if dirs.contains(&self.guard.dir) {
                 Some(true)
             } else {
-                dirs.insert(self.guard.dir);
+                dirs.insert_mut(self.guard.dir);
                 self.guard.coord = self.guard.facing();
                 None
             }
         } else {
-            self.path
-                .insert(self.guard.facing(), HashSet::from([self.guard.dir]));
+            self.path.insert_mut(
+                self.guard.facing(),
+                HashTrieSet::new().insert(self.guard.dir),
+            );
             self.guard.coord = self.guard.facing();
             None
         }
@@ -225,7 +228,7 @@ pub fn part2(input: &str) -> Result<u32, Box<dyn Error>> {
             && !alt_map.path.contains_key(&alt_map.guard.facing())
             && alt_map.guard.facing() != guard_staring_coord
         {
-            alt_map.obstacles.insert(alt_map.guard.facing());
+            alt_map.obstacles.insert_mut(alt_map.guard.facing());
             loop {
                 if let Some(loops) = alt_map.step_guard() {
                     if loops {
