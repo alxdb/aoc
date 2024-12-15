@@ -7,3 +7,4 @@ macro(solution name)
 endmacro()
 
 solution(2015_01)
+solution(2024_08)
