@@ -7,6 +7,7 @@ abstract class Solution {
     companion object {
         fun pick(year: Int, day: Int): Solution? = when (Pair(year, day)) {
             Pair(2015, 1) -> NotQuiteLisp()
+            Pair(2015, 2) -> IWasToldThereWouldBeNoMath()
             else -> null
         }
     }

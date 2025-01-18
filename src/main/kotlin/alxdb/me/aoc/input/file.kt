@@ -6,9 +6,9 @@ import java.io.FileNotFoundException
 val CACHE_DIR = File(System.getProperty("user.home"), ".cache/aoc")
 
 fun fetchInputFromFile(year: Int, day: Int): String? = try {
-    String(getInputFile(year, day).readBytes());
+    String(getInputFile(year, day).readBytes())
 } catch (e: FileNotFoundException) {
-    null;
+    null
 }
 
 fun writeInputFile(year: Int, day: Int, content: String) = getInputFile(year, day).writeText(content)

@@ -10,9 +10,12 @@ import java.net.http.HttpResponse
 const val AOC_URL = "https://adventofcode.com"
 const val AOC_TOKEN_ENV = "AOC_TOKEN"
 
-fun fetchInputFromApi(year: Int, day: Int): String = HttpClient.newBuilder().cookieHandler(authorize()).build().use {
-    it.send(request(year, day), HttpResponse.BodyHandlers.ofString()).body()
-}
+fun fetchInputFromApi(year: Int, day: Int): String = HttpClient.newBuilder()
+    .cookieHandler(authorize())
+    .build().use {
+        it.send(request(year, day), HttpResponse.BodyHandlers.ofString())
+            .body()
+    }
 
 private fun authorize(): CookieManager = CookieManager().apply {
     val cookie = HttpCookie("session", System.getenv(AOC_TOKEN_ENV)!!).apply {
