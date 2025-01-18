@@ -8,6 +8,7 @@ abstract class Solution {
         fun pick(year: Int, day: Int): Solution? = when (Pair(year, day)) {
             Pair(2015, 1) -> NotQuiteLisp()
             Pair(2015, 2) -> IWasToldThereWouldBeNoMath()
+            Pair(2015, 3) -> PerfectlySphericalHousesInAVacuum()
             else -> null
         }
     }
