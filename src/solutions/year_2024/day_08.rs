@@ -21,15 +21,18 @@ fn print_antinodes(input: &str, antinodes: &HashSet<[usize; 2]>) {
 
 pub fn part1(input: &str) -> Result<u64, Box<dyn Error>> {
     let mut node_map = HashMap::new();
-    let size = [input.lines().count(), input.lines().next().unwrap().len()];
+    let size = [
+        input.lines().count() as i64,
+        input.lines().next().unwrap().len() as i64,
+    ];
     for (row_i, row) in input.lines().enumerate() {
         for (col_i, c) in row.char_indices().filter(|(_, c)| *c != '.') {
             node_map
                 .entry(c)
-                .and_modify(|v: &mut HashSet<[usize; 2]>| {
-                    v.insert([row_i, col_i]);
+                .and_modify(|v: &mut HashSet<[i64; 2]>| {
+                    v.insert([row_i as i64, col_i as i64]);
                 })
-                .or_insert(HashSet::from([[row_i, col_i]]));
+                .or_insert(HashSet::from([[row_i as i64, col_i as i64]]));
         }
     }
     let mut antinodes = HashSet::new();
@@ -51,15 +54,18 @@ pub fn part1(input: &str) -> Result<u64, Box<dyn Error>> {
 
 pub fn part2(input: &str) -> Result<u64, Box<dyn Error>> {
     let mut node_map = HashMap::new();
-    let size = [input.lines().count(), input.lines().next().unwrap().len()];
+    let size = [
+        input.lines().count() as i64,
+        input.lines().next().unwrap().len() as i64,
+    ];
     for (row_i, row) in input.lines().enumerate() {
         for (col_i, c) in row.char_indices().filter(|(_, c)| *c != '.') {
             node_map
                 .entry(c)
-                .and_modify(|v: &mut HashSet<[usize; 2]>| {
-                    v.insert([row_i, col_i]);
+                .and_modify(|v: &mut HashSet<[i64; 2]>| {
+                    v.insert([row_i as i64, col_i as i64]);
                 })
-                .or_insert(HashSet::from([[row_i, col_i]]));
+                .or_insert(HashSet::from([[row_i as i64, col_i as i64]]));
         }
     }
     let mut antinodes = HashSet::new();
