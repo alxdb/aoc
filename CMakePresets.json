@@ -17,6 +17,12 @@
             "configurePreset": "default"
         }
     ],
+    "testPresets": [
+        {
+            "name": "default",
+            "configurePreset": "default"
+        }
+    ],
     "workflowPresets": [
         {
             "name": "default",
@@ -27,6 +33,10 @@
                 },
                 {
                     "type": "build",
+                    "name": "default"
+                },
+                {
+                    "type": "test",
                     "name": "default"
                 }
             ]
