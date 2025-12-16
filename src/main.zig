@@ -33,10 +33,7 @@ pub fn main() !void {
     var input_writer = std.Io.Writer.Allocating.init(a);
     defer input_writer.deinit();
 
-    _ = try stdin.streamRemaining(&input_writer.writer);
-    const input: []const u8 = input_writer.written();
-
     std.log.info("Solving problem for year {d:0>4}, day {d:0>2}", .{ year, day });
     const problemId = aoc.ProblemId.init(year, day);
-    try aoc.solveProblem(problemId, input, stdout);
+    try aoc.solveProblem(problemId, stdin, stdout);
 }

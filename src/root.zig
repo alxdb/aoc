@@ -8,28 +8,31 @@ pub const ProblemId = struct {
     }
 };
 
-pub fn solveProblem(id: ProblemId, input: []const u8, output: *std.Io.Writer) !void {
+pub fn solveProblem(id: ProblemId, input: *std.Io.Reader, output: *std.Io.Writer) !void {
     switch (id.value) {
         ProblemId.init(2015, 1).value => try notQuiteLisp(input, output),
         else => return error.NotImplemented,
     }
 }
 
-fn notQuiteLisp(input: []const u8, output: *std.Io.Writer) !void {
+fn notQuiteLisp(input: *std.Io.Reader, output: *std.Io.Writer) !void {
     var floor: i32 = 0;
-    var basement_position: ?usize = null;
-    for (input, 0..) |val, idx| {
+    var basement_found: bool = false;
+    var basement_position: usize = 1;
+    while (input.takeByte() catch null) |val| {
         switch (val) {
             '(' => floor += 1,
             ')' => floor -= 1,
             else => return error.InvalidInput,
         }
-        if (basement_position == null and floor == -1) {
-            basement_position = idx;
+        if (!basement_found) {
+            if (floor == -1) {
+                basement_found = true;
+            } else {
+                basement_position += 1;
+            }
         }
     }
-    try output.print("{}\n{}", .{ floor, basement_position orelse {
-        return error.InvalidInput;
-    } });
+    try output.print("{}\n{}", .{ floor, basement_position });
     try output.flush();
 }
