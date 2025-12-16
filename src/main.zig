@@ -30,40 +30,13 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
     const stdout = &stdout_writer.interface;
 
-    var writer = std.Io.Writer.Allocating.init(a);
-    defer writer.deinit();
+    var input_writer = std.Io.Writer.Allocating.init(a);
+    defer input_writer.deinit();
 
-    _ = try stdin.streamRemaining(&writer.writer);
-    const input: []const u8 = writer.written();
+    _ = try stdin.streamRemaining(&input_writer.writer);
+    const input: []const u8 = input_writer.written();
 
     std.log.info("Solving problem for year {d:0>4}, day {d:0>2}", .{ year, day });
-    const problem = problemId(year, day);
-    switch (problem) {
-        problemId(2015, 1) => {
-            var floor: i32 = 0;
-            var basement_position: ?usize = null;
-            for (input, 0..) |val, idx| {
-                switch (val) {
-                    '(' => floor += 1,
-                    ')' => floor -= 1,
-                    else => return error.InvalidInput,
-                }
-                if (basement_position == null and floor == -1) {
-                    basement_position = idx;
-                }
-            }
-            try stdout.print("{}\n{}", .{ floor, basement_position orelse {
-                return error.InvalidInput;
-            } });
-            try stdout.flush();
-        },
-        else => {
-            std.log.err("Problem not yet solved", .{});
-            std.process.exit(1);
-        },
-    }
-}
-
-fn problemId(year: u16, day: u16) u32 {
-    return @as(u32, @intCast(year)) << 16 | @as(u32, @intCast(day));
+    const problemId = aoc.ProblemId.init(year, day);
+    try aoc.solveProblem(problemId, input, stdout);
 }
